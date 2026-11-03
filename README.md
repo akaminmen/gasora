@@ -4,7 +4,7 @@
 
 Gasora es una web app (PWA) gratuita y sin registro para conductores de España. Responde a una pregunta: «¿dónde repostar más barato cerca de mí ahora mismo?», con los datos abiertos de precios de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico.
 
-> Estado: **Fase 4 de 7** (mapa y hoja inferior). Hay ingesta de datos reales, sistema de diseño con tema claro (por defecto) y oscuro, búsqueda por provincia, municipio o código postal con autocompletado y teclado, «Usar mi ubicación», filtros de combustible, radio, orden y marcas, y resultados con ranking por tramos de precio sobre un mapa (MapLibre + OpenFreeMap) sincronizado con la lista y la ficha. En móvil, el mapa va con una hoja inferior de tres alturas. Los favoritos, la calculadora y la ficha completa llegan en las fases siguientes.
+> Estado: **Fase 5 de 7** (favoritos, calculadora, ficha y URL compartible). Hay ingesta de datos reales, tema claro (por defecto) y oscuro, búsqueda por provincia, municipio o código postal con autocompletado y teclado, «Usar mi ubicación», filtros de combustible, radio, orden y marcas, resultados con ranking por tramos sobre un mapa (MapLibre + OpenFreeMap) con hoja inferior en móvil, ficha de cada gasolinera (`/e/:id`), favoritos guardados en el navegador, calculadora de ahorro por depósito y enlaces que restauran la búsqueda (`/?q=29002&fuel=g95e5&r=5`). Pendientes: estados finales, PWA y sin conexión completo, pulido y lanzamiento.
 
 ## Cómo funciona
 
@@ -46,7 +46,7 @@ npm run ingest:fixtures
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run dev`                                           | Servidor de desarrollo de Vite                                                                                                                                                                            |
 | `npm run build` / `npm run preview`                     | Compila y sirve el build de producción                                                                                                                                                                    |
-| `npm run build:e2e`                                     | Build para los tests: incluye la galería `/ui-kit`, que el build de producción no lleva                                                                                                                   |
+| `npm run build:e2e`                                     | Build para los tests: incluye la galería `/ui-kit` y unos datos de prueba deterministas en `dist/data` (`scripts/e2e-data.ts`)                                                                            |
 | `npm run check:build`                                   | Falla si `dist/` lleva la galería o le falta `404.html`                                                                                                                                                   |
 | `npm run ingest`                                        | Descarga, normaliza, valida y genera `public/data/`                                                                                                                                                       |
 | `npm run ingest:fixtures`                               | Igual, con la muestra de `fixtures/` (datos de demostración)                                                                                                                                              |
@@ -55,6 +55,7 @@ npm run ingest:fixtures
 | `npm run size`                                          | Tamaño de los ficheros de datos en bruto, gzip y brotli (carga inicial y con el índice de búsqueda)                                                                                                       |
 | `npm test`                                              | Tests unitarios (Vitest)                                                                                                                                                                                  |
 | `npm run test:e2e`                                      | Tests de navegador (Playwright): humo, **layout**, accesibilidad (axe). Compila con `build:e2e` y sirve la app solos. Requiere `npx playwright install chromium` la primera vez y datos en `public/data/` |
+| `npm run test:e2e:live`                                 | Prueba contra los servidores reales de OpenFreeMap (estilos y atribución); aparte porque depende de un servicio externo                                                                                   |
 | `npm run lint` / `npm run typecheck` / `npm run format` | Calidad de código                                                                                                                                                                                         |
 
 Si un test e2e se queda esperando, puede haber un servidor antiguo en el puerto 4173: ciérralo antes de volver a lanzarlos.
