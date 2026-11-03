@@ -4,10 +4,9 @@ import { FUELS, type FuelId, type Meta, type PricesFile } from '../../lib/data-s
 import { formatDateTime } from '../../lib/format';
 import type { ResultItem } from '../../lib/resultset';
 import { useDataStore } from '../../stores/data';
-import { useToastStore } from '../../stores/toast';
-
-export const SHARE_PENDING = 'Compartir estará disponible muy pronto.';
-export const FAVORITES_PENDING = 'Los favoritos estarán disponibles muy pronto.';
+import { absoluteUrl } from '../../lib/share';
+import { useFavoritesStore } from '../../stores/favorites';
+import { shareStation } from './share';
 
 /** Ficha de la estación seleccionada: panel lateral en escritorio y contenido de la hoja en móvil. */
 export function DetailPanel({
@@ -29,7 +28,8 @@ export function DetailPanel({
 }) {
   const index = useDataStore((s) => s.index);
   const loadIndex = useDataStore((s) => s.loadIndex);
-  const showToast = useToastStore((s) => s.show);
+  const favorite = useFavoritesStore((s) => s.ids.includes(item.station.id));
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
   useEffect(() => {
     void loadIndex();
   }, [loadIndex]);
@@ -57,9 +57,15 @@ export function DetailPanel({
       dataDate={formatDateTime(meta.sourceDate)}
       lat={station.lat}
       lng={station.lng}
-      favorite={false}
-      onToggleFavorite={() => showToast(FAVORITES_PENDING)}
-      onShare={() => showToast(SHARE_PENDING)}
+      favorite={favorite}
+      onToggleFavorite={() => toggleFavorite(station.id)}
+      onShare={() =>
+        void shareStation({
+          id: station.id,
+          name: station.n,
+          url: absoluteUrl(`/e/${station.id}`),
+        })
+      }
       onClose={onClose}
       columns={columns}
     />

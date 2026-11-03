@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { buildBrandGroups } from '../lib/brands';
+import type { Station } from '../lib/data-schema';
 import { loadData, loadFreshPrices, loadSearchIndex, type GasoraData } from '../lib/data';
 import { createSearcher, type Searcher } from '../lib/search-index';
 
@@ -18,6 +19,8 @@ interface DataStore {
   state: DataState;
   /** brandKey → clave del filtro; se calcula una vez con las estaciones cargadas */
   brandGroups: ReadonlyMap<string, string>;
+  /** IDEESS a estación, para la ficha y los favoritos */
+  stationsById: ReadonlyMap<string, Station>;
   index: IndexState;
   /** Cuándo se cargaron o refrescaron los precios (ms desde la época) */
   loadedAt: number;
@@ -36,6 +39,7 @@ let loadingIndex: Promise<void> | undefined;
 export const useDataStore = create<DataStore>((set, get) => ({
   state: { status: 'loading' },
   brandGroups: new Map(),
+  stationsById: new Map(),
   index: { status: 'idle' },
   loadedAt: 0,
 
@@ -47,6 +51,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
           set({
             state: { status: 'ready', data },
             brandGroups: buildBrandGroups(data.stations.stations),
+            stationsById: new Map(data.stations.stations.map((s) => [s.id, s])),
             loadedAt: Date.now(),
           });
         },

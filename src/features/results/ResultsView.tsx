@@ -29,11 +29,11 @@ import { buildResultSet, type ResultItem, type ResultSet } from '../../lib/resul
 import { useGasoraData } from '../../lib/useGasoraData';
 import { useDataStore } from '../../stores/data';
 import { MAX_LIST, useSearchStore } from '../../stores/search';
-import { useToastStore } from '../../stores/toast';
 import { useUiStore } from '../../stores/ui';
 import { MapPanel } from '../map/MapPanel';
 import { SearchBox } from '../search/SearchBox';
-import { DetailPanel, FAVORITES_PENDING } from './DetailPanel';
+import { useFavoritesStore } from '../../stores/favorites';
+import { DetailPanel } from './DetailPanel';
 
 function title(place: Place): string {
   return place.kind === 'location' ? 'Gasolineras cerca de ti' : `Gasolineras en ${place.label}`;
@@ -54,7 +54,8 @@ export function ResultsView({ place }: { place: Place }) {
   const brandGroups = useDataStore((s) => s.brandGroups);
   const fuel = useUiStore((s) => s.fuel);
   const setFuel = useUiStore((s) => s.setFuel);
-  const showToast = useToastStore((s) => s.show);
+  const favorites = useFavoritesStore((s) => s.ids);
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
   const mode = useLayoutMode();
   const { radiusKm, sort, brands, liters, limit, selectedId } = useSearchStore();
   const { setRadius, setSort, setBrands, showMore, widen, clearPlace, select, revealIndex } =
@@ -222,7 +223,8 @@ export function ResultsView({ place }: { place: Place }) {
               saving={item.saving}
               selected={item.station.id === selectedId}
               onSelect={() => selectFromMap(item.station.id)}
-              onToggleFavorite={() => showToast(FAVORITES_PENDING)}
+              favorite={favorites.includes(item.station.id)}
+              onToggleFavorite={() => toggleFavorite(item.station.id)}
             />
           ))}
         </ul>
