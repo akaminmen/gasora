@@ -7,11 +7,24 @@ import {
   type Place,
 } from '../lib/place';
 import { DEFAULT_LITERS } from '../lib/pricing';
+import { readStorage, writeStorage } from '../lib/storage';
 import type { SortKey } from '../lib/resultset';
 
 /** Elementos que se añaden cada vez que se pulsa «Ver más», hasta `MAX_LIST`. */
 export const PAGE_SIZE = 50;
 export const MAX_LIST = 200;
+
+export const LITERS_KEY = 'gasora:liters:v1';
+export const MIN_LITERS = 1;
+export const MAX_LITERS = 120;
+
+/** Litros del depósito guardados (1–120); si no hay o no valen, 50. */
+export function parseLiters(raw: string | null): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= MIN_LITERS && value <= MAX_LITERS
+    ? value
+    : DEFAULT_LITERS;
+}
 
 interface SearchState {
   place: Place | null;
@@ -20,6 +33,10 @@ interface SearchState {
   /** Claves de filtro de marca elegidas; vacío = todas */
   brands: string[];
   liters: number;
+  setLiters: (liters: number) => void;
+  /** true mientras se resuelve el lugar de un enlace compartido */
+  resolving: boolean;
+  setResolving: (resolving: boolean) => void;
   /** Cuántos resultados se muestran en la lista */
   limit: number;
   /** Estación seleccionada (lista, mapa y ficha comparten esta selección) */
@@ -49,7 +66,14 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   radiusKm: DEFAULT_RADIUS_KM,
   sort: 'price',
   brands: [],
-  liters: DEFAULT_LITERS,
+  liters: parseLiters(readStorage(LITERS_KEY)),
+  setLiters: (liters) => {
+    const value = Math.min(MAX_LITERS, Math.max(MIN_LITERS, Math.round(liters) || DEFAULT_LITERS));
+    writeStorage(LITERS_KEY, String(value));
+    set({ liters: value });
+  },
+  resolving: false,
+  setResolving: (resolving) => set({ resolving }),
   limit: PAGE_SIZE,
   selectedId: null,
   select: (selectedId) => set({ selectedId }),
