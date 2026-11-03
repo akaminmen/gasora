@@ -1,6 +1,7 @@
 import { Check, LocateFixed, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
+import { StationCardSkeleton } from '../../components/ui/Feedback';
 import { formatDateTime } from '../../lib/format';
 import { useGasoraData } from '../../lib/useGasoraData';
 import { useLocationStore } from '../../stores/location';
@@ -9,6 +10,7 @@ import { useUiStore } from '../../stores/ui';
 import { ResultsView } from '../results/ResultsView';
 import { SearchBox } from '../search/SearchBox';
 import { LocationPanel } from './LocationPanel';
+import { useUrlSync } from './useUrlSync';
 import { HeroPreview } from './HeroPreview';
 
 function DataStatus() {
@@ -48,8 +50,20 @@ function DataStatus() {
 
 /** Inicio: hero de primera visita; con una búsqueda o la ubicación en curso, los resultados. */
 export function HomePage() {
+  useUrlSync();
   const place = useSearchStore((s) => s.place);
+  const resolving = useSearchStore((s) => s.resolving);
   const flow = useLocationStore((s) => s.flow);
+  if (resolving) {
+    return (
+      <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-6" aria-busy="true">
+        <p role="status" className="mb-4 text-sm text-muted">
+          Abriendo la búsqueda compartida…
+        </p>
+        <StationCardSkeleton />
+      </div>
+    );
+  }
   if (flow.step !== 'idle') {
     return (
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 py-6 lg:px-6">

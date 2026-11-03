@@ -23,6 +23,10 @@ export interface PlaceSuggestion {
 }
 
 export interface Searcher {
+  /** Lugares por referencia (URL compartible); undefined si ya no existen */
+  postal(code: string): Place | undefined;
+  municipality(id: number): Place | undefined;
+  province(id: number): Place | undefined;
   municipalityName(id: number): string | undefined;
   provinceName(id: number): string | undefined;
   suggest(
@@ -117,8 +121,20 @@ export function createSearcher(index: SearchIndex): Searcher {
   }));
 
   const municipalityNames = new Map(index.municipalities.map((m) => [m.id, m.name]));
+  const places = {
+    postal: new Map(postalCodes.map((c) => [c.code, c.suggestion.place as Place])),
+    municipality: new Map(
+      index.municipalities.map((m, i) => [m.id, municipalities[i]?.suggestion.place as Place]),
+    ),
+    province: new Map(
+      index.provinces.map((p, i) => [p.id, provinces[i]?.suggestion.place as Place]),
+    ),
+  };
 
   return {
+    postal: (code) => places.postal.get(code),
+    municipality: (id) => places.municipality.get(id),
+    province: (id) => places.province.get(id),
     municipalityName: (id) => municipalityNames.get(id),
     provinceName: (id) => provinceName.get(id),
     suggest(query, limit = DEFAULT_LIMITS) {
