@@ -1,4 +1,4 @@
-import { Clock, Fuel, Info, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { Clock, Fuel, Info, Map as MapIcon, ShieldCheck, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
 import { LogoMark, Wordmark } from '../../components/ui/Logo';
@@ -67,6 +67,21 @@ export function AboutPage() {
               {data ? formatDateTime(data.meta.sourceDate) : '…'}
             </b>
             .
+          </p>
+        </InfoCard>
+
+        <InfoCard icon={<MapIcon width={20} height={20} aria-hidden />} title="Mapa">
+          <p data-testid="about-map">
+            © OpenMapTiles, Data from OpenStreetMap, servido por{' '}
+            <a
+              href="https://openfreemap.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              OpenFreeMap
+            </a>
+            . La atribución también aparece en la esquina del propio mapa.
           </p>
         </InfoCard>
 

@@ -12,7 +12,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(dark ? 'light' : 'dark')}
       aria-label={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       data-testid="theme-toggle"
-      className="inline-grid size-11 flex-none place-items-center rounded-full border border-line bg-surface text-ink transition hover:bg-brand-50"
+      className="inline-grid size-[44px] flex-none place-items-center rounded-full border border-line bg-surface text-ink transition hover:bg-brand-50"
     >
       {dark ? (
         <Sun width={20} height={20} aria-hidden />

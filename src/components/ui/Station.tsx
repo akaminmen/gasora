@@ -158,7 +158,7 @@ export function StationCard({
   );
   const hasMeta = distanceKm !== undefined || address;
   return (
-    <li className="station-card-host list-none">
+    <li className="station-card-host list-none" data-station-id={id}>
       <article
         className="station-card"
         data-testid="station-card"

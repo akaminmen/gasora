@@ -23,6 +23,8 @@ export interface PlaceSuggestion {
 }
 
 export interface Searcher {
+  municipalityName(id: number): string | undefined;
+  provinceName(id: number): string | undefined;
   suggest(
     query: string,
     limit?: { province: number; municipality: number; postal: number },
@@ -114,7 +116,11 @@ export function createSearcher(index: SearchIndex): Searcher {
     },
   }));
 
+  const municipalityNames = new Map(index.municipalities.map((m) => [m.id, m.name]));
+
   return {
+    municipalityName: (id) => municipalityNames.get(id),
+    provinceName: (id) => provinceName.get(id),
     suggest(query, limit = DEFAULT_LIMITS) {
       const q = fold(query);
       if (q.length === 0) return [];

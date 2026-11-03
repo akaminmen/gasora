@@ -50,16 +50,17 @@ function DataStatus() {
 export function HomePage() {
   const place = useSearchStore((s) => s.place);
   const flow = useLocationStore((s) => s.flow);
-  if (flow.step !== 'idle' || place) {
+  if (flow.step !== 'idle') {
     return (
       <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 py-6 lg:px-6">
         <div className="max-w-[600px]">
           <SearchBox size="default" />
         </div>
-        {flow.step !== 'idle' ? <LocationPanel /> : place && <ResultsView place={place} />}
+        <LocationPanel />
       </div>
     );
   }
+  if (place) return <ResultsView place={place} />;
   return <Hero />;
 }
 

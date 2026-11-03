@@ -86,7 +86,7 @@ export function AppShell() {
           <Link
             to="/acerca"
             aria-label="Acerca de Gasora"
-            className="inline-grid size-11 place-items-center rounded-full text-muted hover:bg-brand-50 lg:hidden"
+            className="inline-grid size-[44px] place-items-center rounded-full text-muted hover:bg-brand-50 lg:hidden"
           >
             <Info width={20} height={20} aria-hidden />
           </Link>

@@ -22,17 +22,27 @@ interface SearchState {
   liters: number;
   /** Cuántos resultados se muestran en la lista */
   limit: number;
+  /** Estación seleccionada (lista, mapa y ficha comparten esta selección) */
+  selectedId: string | null;
+  select: (id: string | null) => void;
   setPlace: (place: Place) => void;
   clearPlace: () => void;
   setRadius: (km: number) => void;
   setSort: (sort: SortKey) => void;
   setBrands: (brands: string[]) => void;
   showMore: () => void;
+  /** Amplía la lista lo justo para que se vea el elemento de esa posición (hasta `MAX_LIST`). */
+  revealIndex: (index: number) => void;
   /** «Ampliar»: municipio → 10 km desde su centroide; con radio → dobla el radio (máx. 50 km). */
   widen: () => void;
 }
 
-const reset = { sort: 'price' as SortKey, brands: [] as string[], limit: PAGE_SIZE };
+const reset = {
+  sort: 'price' as SortKey,
+  brands: [] as string[],
+  limit: PAGE_SIZE,
+  selectedId: null as string | null,
+};
 
 export const useSearchStore = create<SearchState>((set, get) => ({
   place: null,
@@ -41,6 +51,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   brands: [],
   liters: DEFAULT_LITERS,
   limit: PAGE_SIZE,
+  selectedId: null,
+  select: (selectedId) => set({ selectedId }),
   // Cada búsqueda nueva empieza con radio por defecto, orden por precio y todas las marcas.
   setPlace: (place) => set({ place, radiusKm: DEFAULT_RADIUS_KM, ...reset }),
   clearPlace: () => set({ place: null, radiusKm: DEFAULT_RADIUS_KM, ...reset }),
@@ -48,6 +60,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   setSort: (sort) => set({ sort, limit: PAGE_SIZE }),
   setBrands: (brands) => set({ brands, limit: PAGE_SIZE }),
   showMore: () => set((s) => ({ limit: Math.min(MAX_LIST, s.limit + PAGE_SIZE) })),
+  revealIndex: (index) =>
+    set((s) => ({
+      limit: Math.min(MAX_LIST, Math.max(s.limit, (Math.floor(index / PAGE_SIZE) + 1) * PAGE_SIZE)),
+    })),
   widen: () => {
     const { place, radiusKm } = get();
     if (!place) return;

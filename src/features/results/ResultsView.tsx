@@ -1,5 +1,6 @@
-import { Expand, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { Expand, List, Map as MapIcon, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { BottomSheet, type SheetSnap } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
 import {
   BrandMultiSelect,
@@ -14,6 +15,7 @@ import {
   StationCardSkeleton,
 } from '../../components/ui/Feedback';
 import { StationCard } from '../../components/ui/Station';
+import { useLayoutMode } from '../../hooks/useLayoutMode';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime, formatPrice } from '../../lib/format';
 import {
@@ -23,14 +25,15 @@ import {
   usesRadius,
   type Place,
 } from '../../lib/place';
-import { buildResultSet } from '../../lib/resultset';
+import { buildResultSet, type ResultItem, type ResultSet } from '../../lib/resultset';
 import { useGasoraData } from '../../lib/useGasoraData';
+import { useDataStore } from '../../stores/data';
 import { MAX_LIST, useSearchStore } from '../../stores/search';
 import { useToastStore } from '../../stores/toast';
 import { useUiStore } from '../../stores/ui';
-import { useDataStore } from '../../stores/data';
-
-export const FAVORITES_PENDING = 'Los favoritos estarán disponibles muy pronto.';
+import { MapPanel } from '../map/MapPanel';
+import { SearchBox } from '../search/SearchBox';
+import { DetailPanel, FAVORITES_PENDING } from './DetailPanel';
 
 function title(place: Place): string {
   return place.kind === 'location' ? 'Gasolineras cerca de ti' : `Gasolineras en ${place.label}`;
@@ -42,18 +45,28 @@ function canWiden(place: Place, radiusKm: number): boolean {
   return usesRadius(place) && radiusKm < MAX_RADIUS_KM;
 }
 
-/** Resultados de la búsqueda activa (lista sencilla; el mapa llega en la Fase 4). */
+const placeKey = (place: Place) =>
+  `${place.kind}:${place.label}:${place.lat},${place.lng}:${'expanded' in place ? place.expanded : ''}`;
+
+/** Resultados de la búsqueda activa: lista, mapa y ficha sincronizados. */
 export function ResultsView({ place }: { place: Place }) {
   const { state, retry } = useGasoraData();
   const brandGroups = useDataStore((s) => s.brandGroups);
   const fuel = useUiStore((s) => s.fuel);
   const setFuel = useUiStore((s) => s.setFuel);
   const showToast = useToastStore((s) => s.show);
-  const { radiusKm, sort, brands, liters, limit } = useSearchStore();
-  const { setRadius, setSort, setBrands, showMore, widen, clearPlace } = useSearchStore.getState();
+  const mode = useLayoutMode();
+  const { radiusKm, sort, brands, liters, limit, selectedId } = useSearchStore();
+  const { setRadius, setSort, setBrands, showMore, widen, clearPlace, select, revealIndex } =
+    useSearchStore.getState();
+  const [snap, setSnap] = useState<SheetSnap>('mid');
+  const [sheetHeight, setSheetHeight] = useState(0);
+  const [floatingHeight, setFloatingHeight] = useState(124);
+  const floatingRef = useRef<HTMLDivElement>(null);
+  const onSheetHeight = useCallback((h: number) => setSheetHeight(h), []);
 
   const data = state.status === 'ready' ? state.data : null;
-  const result = useMemo(
+  const result = useMemo<ResultSet | null>(
     () =>
       data
         ? buildResultSet({
@@ -70,6 +83,50 @@ export function ResultsView({ place }: { place: Place }) {
         : null,
     [data, fuel, place, radiusKm, brands, sort, liters, brandGroups],
   );
+  const selectedItem: ResultItem | undefined = useMemo(
+    () => (selectedId ? result?.items.find((i) => i.station.id === selectedId) : undefined),
+    [result, selectedId],
+  );
+
+  // Alto real del buscador y los chips flotantes (crece con el tamaño de letra del sistema)
+  useEffect(() => {
+    const el = floatingRef.current;
+    if (!el) return;
+    const measure = () => setFloatingHeight(Math.ceil(el.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mode]);
+
+  // La pantalla de mapa en móvil ocupa todo el alto: el pie de página se consulta en «Acerca de»
+  useEffect(() => {
+    document.body.dataset['mapScreen'] = 'true';
+    return () => {
+      delete document.body.dataset['mapScreen'];
+    };
+  }, []);
+
+  // Seleccionar (en el mapa o en la lista) lleva la lista hasta la tarjeta
+  useEffect(() => {
+    if (!selectedId || !result) return;
+    const index = result.visible.findIndex((i) => i.station.id === selectedId);
+    if (index >= 0) revealIndex(index);
+    const frame = requestAnimationFrame(() => {
+      const card = document.querySelector(`[data-station-id="${CSS.escape(selectedId)}"]`);
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId, result, revealIndex, limit, mode]);
+
+  const selectFromMap = useCallback(
+    (id: string) => {
+      select(id);
+      setSnap((s) => (s === 'compact' ? 'mid' : s));
+    },
+    [select],
+  );
 
   const fuelLabel = FUEL_LABELS[fuel];
   const widenLabel =
@@ -77,12 +134,39 @@ export function ResultsView({ place }: { place: Place }) {
       ? `Ampliar a ${EXPANDED_MUNICIPALITY_KM} km`
       : 'Ampliar radio';
 
-  let body;
+  const summary = result
+    ? result.stats
+      ? `${result.items.length.toLocaleString('es-ES')} ${
+          result.items.length === 1 ? 'gasolinera' : 'gasolineras'
+        } con ${fuelLabel} · media ${formatPrice(Math.round(result.stats.mean))}`
+      : `Sin gasolineras con ${fuelLabel}`
+    : 'Buscando…';
+
+  const controls = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {usesRadius(place) && (
+        <div className="min-w-[14rem] flex-1">
+          <RadiusSlider value={radiusKm} onChange={setRadius} />
+        </div>
+      )}
+      {hasOrigin(place) && <SortControl value={sort} onChange={setSort} />}
+      {result && result.brands.length > 1 && (
+        <BrandMultiSelect options={result.brands} selected={brands} onChange={setBrands} />
+      )}
+      {place.kind === 'municipality' && !place.expanded && (
+        <Button variant="secondary" onClick={widen}>
+          {widenLabel}
+        </Button>
+      )}
+    </div>
+  );
+
+  let list: ReactNode;
   if (state.status === 'error') {
-    body = <ErrorState text={state.message} onRetry={retry} />;
+    list = <ErrorState text={state.message} onRetry={retry} />;
   } else if (!result || !data) {
-    body = (
-      <ul className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0 md:grid-cols-2">
+    list = (
+      <ul className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0">
         {[0, 1, 2, 3].map((i) => (
           <li key={i} className="list-none">
             <StationCardSkeleton />
@@ -91,7 +175,7 @@ export function ResultsView({ place }: { place: Place }) {
       </ul>
     );
   } else if (result.items.length === 0) {
-    body = (
+    list = (
       <EmptyState
         title="No encontramos gasolineras aquí"
         text={`Ninguna gasolinera de esta zona vende ${fuelLabel}. Prueba con otro combustible o con una zona más amplia.`}
@@ -105,7 +189,7 @@ export function ResultsView({ place }: { place: Place }) {
       />
     );
   } else if (result.visible.length === 0) {
-    body = (
+    list = (
       <EmptyState
         title="Ninguna con esas marcas"
         text="Ninguna gasolinera de las marcas elegidas vende este combustible en esta zona."
@@ -118,11 +202,11 @@ export function ResultsView({ place }: { place: Place }) {
     );
   } else {
     const shown = result.visible.slice(0, limit);
-    body = (
+    list = (
       <>
         <ul
           data-testid="results-list"
-          className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0 md:grid-cols-2"
+          className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0"
         >
           {shown.map((item) => (
             <StationCard
@@ -136,17 +220,19 @@ export function ResultsView({ place }: { place: Place }) {
               tier={item.tier}
               best={item.best}
               saving={item.saving}
+              selected={item.station.id === selectedId}
+              onSelect={() => selectFromMap(item.station.id)}
               onToggleFavorite={() => showToast(FAVORITES_PENDING)}
             />
           ))}
         </ul>
         {result.visible.length > shown.length &&
           (limit < MAX_LIST ? (
-            <Button variant="secondary" size="lg" className="mx-auto" onClick={showMore}>
+            <Button variant="secondary" size="lg" className="mx-auto mt-3" onClick={showMore}>
               Ver más
             </Button>
           ) : (
-            <p className="text-center text-sm text-muted">
+            <p className="mt-3 text-center text-sm text-muted">
               Mostramos las {MAX_LIST} primeras. Afina la búsqueda para ver el resto.
             </p>
           ))}
@@ -154,61 +240,200 @@ export function ResultsView({ place }: { place: Place }) {
     );
   }
 
-  const stats = result?.stats;
-  return (
-    <section aria-labelledby="results-title" className="flex min-w-0 flex-col gap-5">
-      {data?.fromCache && (
-        <OfflineBanner date={formatDateTime(data.meta.sourceDate)} onRetry={retry} />
-      )}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1
-            id="results-title"
-            data-testid="results-title"
-            className="font-display-800 text-[1.75rem] leading-tight lg:text-[2.25rem]"
-          >
-            {title(place)}
-          </h1>
-          <p data-testid="results-summary" className="mt-1 text-sm text-muted">
-            {result
-              ? stats
-                ? `${result.items.length.toLocaleString('es-ES')} ${
-                    result.items.length === 1 ? 'gasolinera' : 'gasolineras'
-                  } con ${fuelLabel} · media ${formatPrice(Math.round(stats.mean))}`
-                : `Sin gasolineras con ${fuelLabel}`
-              : 'Buscando…'}
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          icon={<X width={18} height={18} aria-hidden />}
-          onClick={clearPlace}
-          data-testid="clear-search"
-        >
-          Borrar búsqueda
-        </Button>
-      </div>
+  const detail = (columns: 2 | 3) =>
+    selectedItem && data ? (
+      <DetailPanel
+        item={selectedItem}
+        fuel={fuel}
+        prices={data.prices.p}
+        meta={data.meta}
+        liters={liters}
+        columns={columns}
+        onClose={() => select(null)}
+      />
+    ) : null;
 
-      <FuelChips value={fuel} onChange={setFuel} />
+  const user = place.kind === 'location' ? { lat: place.lat, lng: place.lng } : null;
+  const fitKey = result
+    ? `${placeKey(place)}|${usesRadius(place) ? radiusKm : ''}|${brands.join(',')}`
+    : null;
+  const offline = data?.fromCache ? (
+    <OfflineBanner date={formatDateTime(data.meta.sourceDate)} onRetry={retry} />
+  ) : null;
+  const map = (inset: { top: number; right: number; bottom: number; left: number }) => (
+    <MapPanel
+      items={result?.visible ?? []}
+      selectedId={selectedId}
+      onSelect={selectFromMap}
+      user={user}
+      origin={{ lat: place.lat, lng: place.lng }}
+      fitKey={fitKey}
+      inset={inset}
+      showLegend={mode !== 'mobile'}
+    />
+  );
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {usesRadius(place) && (
-          <div className="min-w-[14rem] flex-1 sm:max-w-sm">
-            <RadiusSlider value={radiusKm} onChange={setRadius} />
+  // ---------- Móvil: mapa a pantalla casi completa + hoja inferior de tres alturas ----------
+  if (mode === 'mobile') {
+    const minPrice = result?.stats ? formatPrice(result.stats.min) : null;
+    const header = selectedItem ? undefined : (
+      <div className="flex flex-col gap-2 px-4 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p
+              className="font-display-800 text-[1.0625rem] leading-tight"
+              data-testid="sheet-count"
+            >
+              {result ? `${result.items.length.toLocaleString('es-ES')} gasolineras` : 'Buscando…'}
+            </p>
+            <p className="text-[0.78rem] text-muted" data-testid="results-summary">
+              {minPrice ? `Desde ${minPrice}` : fuelLabel}
+              {usesRadius(place) ? ` · radio ${radiusKm} km` : ''}
+            </p>
           </div>
-        )}
-        {hasOrigin(place) && <SortControl value={sort} onChange={setSort} />}
-        {result && result.brands.length > 1 && (
-          <BrandMultiSelect options={result.brands} selected={brands} onChange={setBrands} />
-        )}
-        {place.kind === 'municipality' && !place.expanded && (
-          <Button variant="secondary" onClick={widen}>
-            {widenLabel}
+          {hasOrigin(place) && <SortControl value={sort} onChange={setSort} />}
+        </div>
+        {snap === 'full' && controls}
+      </div>
+    );
+    return (
+      <section
+        aria-label="Resultados"
+        className="relative h-[calc(100dvh-4rem-72px)] overflow-hidden"
+        data-testid="results-mobile"
+      >
+        <h1 id="results-title" data-testid="results-title" className="sr-only">
+          {title(place)}
+        </h1>
+        <div className="absolute inset-0">
+          {map({ top: floatingHeight, right: 0, bottom: sheetHeight, left: 0 })}
+        </div>
+        <div
+          ref={floatingRef}
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-2 p-3"
+        >
+          <div className="pointer-events-auto">
+            <SearchBox size="compact" />
+          </div>
+          <div className="pointer-events-auto -mx-3 px-3">
+            <FuelChips value={fuel} onChange={setFuel} />
+          </div>
+        </div>
+        <div className="absolute right-3 z-20" style={{ bottom: sheetHeight + 12 }}>
+          <Button
+            icon={
+              snap === 'full' ? (
+                <MapIcon width={18} height={18} aria-hidden />
+              ) : (
+                <List width={18} height={18} aria-hidden />
+              )
+            }
+            onClick={() => setSnap(snap === 'full' ? 'compact' : 'full')}
+            data-testid="sheet-toggle"
+          >
+            {snap === 'full' ? 'Mapa' : 'Lista'}
           </Button>
+        </div>
+        <BottomSheet
+          snap={snap}
+          onSnapChange={setSnap}
+          label="Gasolineras"
+          header={header}
+          onHeightChange={onSheetHeight}
+          topReserve={floatingHeight + 8}
+        >
+          {offline && <div className="px-3 pb-2">{offline}</div>}
+          {selectedItem ? (
+            detail(3)
+          ) : (
+            <div className="px-3 pb-4">
+              {list}
+              <div className="mt-3 flex justify-center">
+                <Button variant="ghost" onClick={clearPlace} data-testid="clear-search">
+                  Borrar búsqueda
+                </Button>
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+      </section>
+    );
+  }
+
+  // ---------- Tablet y escritorio: lista · mapa · ficha ----------
+  const desktop = mode === 'desktop';
+  return (
+    <section
+      aria-label="Resultados"
+      className="flex h-[calc(100dvh-4rem)] min-h-[560px] flex-col"
+      data-testid="results-desktop"
+    >
+      <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2 lg:px-6">
+        <div className="w-full max-w-[460px] min-w-[16rem] flex-1">
+          <SearchBox size="compact" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <FuelChips value={fuel} onChange={setFuel} />
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <aside
+          aria-label="Lista de gasolineras"
+          className={`flex min-w-0 flex-none flex-col border-r border-line bg-bg ${
+            desktop ? 'w-[400px]' : 'w-[340px]'
+          }`}
+        >
+          <div className="flex flex-none flex-col gap-3 px-4 pt-4 pb-3">
+            {offline}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h1
+                  id="results-title"
+                  data-testid="results-title"
+                  className="font-display-800 text-[1.125rem] leading-tight"
+                >
+                  {title(place)}
+                </h1>
+                <p data-testid="results-summary" className="mt-1 text-[0.8125rem] text-muted">
+                  {summary}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                icon={<X width={18} height={18} aria-hidden />}
+                onClick={clearPlace}
+                data-testid="clear-search"
+                className="flex-none"
+              >
+                Borrar búsqueda
+              </Button>
+            </div>
+            {controls}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5" data-testid="list-scroll">
+            {list}
+          </div>
+        </aside>
+        <div className="relative min-w-0 flex-1">
+          {map({ top: 0, right: desktop || !selectedItem ? 0 : 360, bottom: 0, left: 0 })}
+          {!desktop && selectedItem && (
+            <aside
+              aria-label="Ficha de la gasolinera"
+              className="absolute inset-y-0 right-0 z-10 w-[360px] max-w-full overflow-y-auto border-l border-line bg-surface shadow-raised"
+            >
+              {detail(2)}
+            </aside>
+          )}
+        </div>
+        {desktop && selectedItem && (
+          <aside
+            aria-label="Ficha de la gasolinera"
+            className="w-[360px] flex-none overflow-y-auto border-l border-line bg-surface"
+          >
+            {detail(2)}
+          </aside>
         )}
       </div>
-
-      {body}
     </section>
   );
 }
