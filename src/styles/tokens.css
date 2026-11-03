@@ -1,0 +1,100 @@
+/*
+ * Tokens de diseño (sección 9.2 del plan). Tema claro por defecto; el oscuro se activa con
+ * data-theme="dark" o, si no hay elección manual, con la preferencia del sistema.
+ * Los tokens marcados «extra» no están en la tabla del plan: se añadieron para componentes.
+ */
+:root {
+  color-scheme: light;
+
+  --brand-500: #4f46e5;
+  --brand-600: #4338ca;
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-link: #4338ca;
+  --ink: #0d1b2a;
+  --muted: #52627a;
+  --bg: #f7fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e3e8ef;
+  --focus: #4f46e5;
+
+  /* extra */
+  --on-brand: #ffffff;
+  --brand-logo: #4f46e5;
+  --brand-logo-arc: #818cf8;
+  --handle: #cbd5e1;
+  --avatar-1-bg: #e0e7ff;
+  --avatar-1-fg: #3730a3;
+  --avatar-2-bg: #dce3ee;
+  --avatar-2-fg: #0d1b2a;
+  --avatar-3-bg: #eef2ff;
+  --avatar-3-fg: #4338ca;
+  --shadow-sm: 0 1px 2px rgb(13 27 42 / 0.06), 0 6px 20px rgb(13 27 42 / 0.07);
+  --shadow-lg: 0 2px 6px rgb(13 27 42 / 0.08), 0 18px 44px rgb(13 27 42 / 0.18);
+
+  /* Escala de precios: solo para precios (sección 9.2). Igual en ambos temas. */
+  --tier-cheap-bg: #15803d;
+  --tier-cheap-fg: #ffffff;
+  --tier-mid-bg: #facc15;
+  --tier-mid-fg: #0d1b2a;
+  --tier-high-bg: #c2410c;
+  --tier-high-fg: #ffffff;
+  --tier-top-bg: #b91c1c;
+  --tier-top-fg: #ffffff;
+}
+
+:root[data-theme='dark'],
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand-50: #1b2147;
+  --brand-100: #232b5e;
+  --brand-link: #a5b4fc;
+  --ink: #e6ecf5;
+  --muted: #9aa8bc;
+  --bg: #0a1220;
+  --surface: #141c2b;
+  --surface-2: #1a2436;
+  --border: #243049;
+  --focus: #a5b4fc;
+
+  --brand-logo: #818cf8;
+  --handle: #3a4a66;
+  --avatar-1-bg: #272f6b;
+  --avatar-1-fg: #c7d2fe;
+  --avatar-2-bg: #243049;
+  --avatar-2-fg: #e6ecf5;
+  --avatar-3-bg: #1b2147;
+  --avatar-3-fg: #a5b4fc;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 44px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --brand-50: #1b2147;
+    --brand-100: #232b5e;
+    --brand-link: #a5b4fc;
+    --ink: #e6ecf5;
+    --muted: #9aa8bc;
+    --bg: #0a1220;
+    --surface: #141c2b;
+    --surface-2: #1a2436;
+    --border: #243049;
+    --focus: #a5b4fc;
+
+    --brand-logo: #818cf8;
+    --handle: #3a4a66;
+    --avatar-1-bg: #272f6b;
+    --avatar-1-fg: #c7d2fe;
+    --avatar-2-bg: #243049;
+    --avatar-2-fg: #e6ecf5;
+    --avatar-3-bg: #1b2147;
+    --avatar-3-fg: #a5b4fc;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 44px rgb(0 0 0 / 0.6);
+  }
+}

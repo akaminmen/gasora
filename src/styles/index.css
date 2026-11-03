@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+@import './fonts.css';
+@import './tokens.css';
+@import './components.css';
+
+/* Los tokens se exponen como utilidades de Tailwind (bg-surface, text-ink, border-line…). */
+@theme inline {
+  --color-brand: var(--brand-500);
+  --color-brand-hover: var(--brand-600);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-link: var(--brand-link);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-on-brand: var(--on-brand);
+
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, sans-serif;
+
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --shadow-soft: var(--shadow-sm);
+  --shadow-raised: var(--shadow-lg);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  p {
+    margin: 0;
+  }
+  a {
+    color: var(--brand-link);
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  input[type='range'] {
+    accent-color: var(--brand-500);
+  }
+}
+
+@layer components {
+  .font-display-800 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
