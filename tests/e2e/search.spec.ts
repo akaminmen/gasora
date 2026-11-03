@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /** Búsqueda, autocompletado con teclado, ubicación, filtros y caché de datos (Fase 3). */
 const DATA = resolve(import.meta.dirname, '../../public/data');

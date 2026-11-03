@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /** Accesibilidad automática (WCAG 2.2 AA) en la galería y en las pantallas, en claro y oscuro. */
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -68,6 +68,8 @@ for (const theme of ['light', 'dark'] as const) {
         const box = page.getByRole('combobox').first();
         await box.fill('malag');
         await box.press('Enter');
+        // En móvil, el radio y las marcas solo aparecen con la hoja expandida
+        if (width < 640) await page.getByTestId('sheet-toggle').click();
         await page.getByRole('button', { name: /^Marcas/ }).click();
         await expect(page.getByRole('group', { name: 'Marcas' })).toBeVisible();
         await expectNoViolations(page);

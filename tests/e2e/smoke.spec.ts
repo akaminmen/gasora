@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 // La app lee los JSON reales generados por la ingesta (criterio de la Fase 1).
 const meta = JSON.parse(

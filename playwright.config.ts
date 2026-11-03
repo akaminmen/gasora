@@ -4,6 +4,10 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  workers: 2,
+  // El mapa se dibuja con WebGL por software en Chromium sin interfaz: con varios workers va más lento.
+  timeout: 45_000,
+  expect: { timeout: 10_000 },
   reporter: [['list']],
   use: { baseURL: 'http://127.0.0.1:4173', locale: 'es-ES', timezoneId: 'Europe/Madrid' },
   webServer: {

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Tests de layout (sección 12 del plan). El aspecto no se revisa a ojo: se verifica
@@ -374,9 +375,22 @@ for (const theme of THEMES) {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
       expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
+      // El mapa tiene tamaño real (el lienzo no se queda en el 300 px por defecto)
+      await expect(page.getByTestId('map')).toHaveAttribute('data-ready', 'true');
+      const mapBox = await page.getByTestId('map').boundingBox();
+      expect(mapBox?.width, 'ancho del mapa').toBeGreaterThan(250);
+      expect(mapBox?.height, 'alto del mapa').toBeGreaterThan(200);
+      const canvasHeight = await page
+        .locator('canvas.maplibregl-canvas')
+        .evaluate((c) => c.clientHeight);
+      expect(canvasHeight).toBeGreaterThan(200);
       // Controles de la cabecera de resultados: zonas táctiles de 44 px y sin salirse
       const small = await page.evaluate(() =>
-        [...document.querySelectorAll<HTMLElement>('main button, main input[type="range"]')]
+        [
+          ...document.querySelectorAll<HTMLElement>(
+            'main button:not(.station-card__link), main input[type="range"]',
+          ),
+        ]
           .filter((el) => el.getBoundingClientRect().width > 0)
           .map((el) => ({ el, r: el.getBoundingClientRect() }))
           .filter(({ r }) => r.height < 43.5 || r.width < 43.5)
@@ -385,4 +399,46 @@ for (const theme of THEMES) {
       expect(small, 'zonas táctiles menores de 44 px').toEqual([]);
     });
   }
+}
+
+// Texto del sistema al 200 % en la pantalla de resultados con mapa
+for (const width of [390, 768, 1440]) {
+  test(`resultados con mapa a ${width} px y texto al 200 %: sin solapes ni desbordes`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
+    await box.fill('malag');
+    await box.press('Enter');
+    await expect(page.getByTestId('map')).toHaveAttribute('data-ready', 'true');
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(400);
+
+    expect(await inspectCards(page)).toEqual([]);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
+
+    if (width < 640) {
+      // La hoja expandida no tapa el buscador ni los chips, aunque crezcan con el texto
+      await page.getByTestId('sheet-toggle').click();
+      await page.waitForTimeout(500);
+      const sheetTop = (await page.locator('section.bottom-sheet').boundingBox())?.y ?? 0;
+      const chips = await page.getByRole('group', { name: 'Tipo de combustible' }).boundingBox();
+      expect(sheetTop).toBeGreaterThanOrEqual((chips?.y ?? 0) + (chips?.height ?? 0) - 0.5);
+      const navTop =
+        (await page.getByRole('navigation', { name: 'Principal' }).last().boundingBox())?.y ?? 0;
+      const sheet = await page.locator('section.bottom-sheet').boundingBox();
+      expect((sheet?.y ?? 0) + (sheet?.height ?? 0)).toBeLessThanOrEqual(navTop + 0.5);
+    } else {
+      const mapBox = await page.getByTestId('map').boundingBox();
+      expect(mapBox?.height).toBeGreaterThan(150);
+    }
+  });
 }
