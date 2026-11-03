@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # La CI no depende del Ministerio: usa la muestra de fixtures/ (datos de demostración).
+      - run: npm run ingest:fixtures
+      - run: npm run check:data
+      # El build de producción no debe llevar la galería /ui-kit (los e2e usan un build aparte).
+      - run: npm run build
+      - run: npm run check:build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

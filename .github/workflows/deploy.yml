@@ -1,0 +1,54 @@
+name: Ingesta y despliegue
+
+on:
+  schedule:
+    # Cada 30 min. GitHub puede retrasar los cron: la fecha de los datos se muestra siempre.
+    - cron: '*/30 * * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita solapes entre ejecuciones; no cancela un despliegue en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GASORA_BASE: /${{ github.event.repository.name }}/
+      # Último dato publicado: respaldo si la API del Ministerio falla (sección 5.3 del plan).
+      GASORA_PREVIOUS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Si no hay datos válidos ni respaldo, falla aquí y la web sigue con el último despliegue bueno.
+      - run: npm run ingest
+      - run: npm run check:data
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:build
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
