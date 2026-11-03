@@ -1,8 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-/** Los tests e2e prueban el build real servido con `npm run preview` (necesita public/data). */
+/** Los tests e2e prueban el build real servido con `npm run preview` con datos de prueba deterministas (`scripts/e2e-data.ts`, ver `build:e2e`). */
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Las pruebas contra servicios externos (OpenFreeMap) van aparte: playwright.live.config.ts
+  testIgnore: /.*-live\.spec\.ts/,
   fullyParallel: true,
   workers: 2,
   // El mapa se dibuja con WebGL por software en Chromium sin interfaz: con varios workers va más lento.

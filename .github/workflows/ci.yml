@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  # También en main: el usuario sube directamente a main y, si no, la calidad no se comprueba
+  # (el despliegue no ejecuta los tests).
   push:
-    branches-ignore: [main]
   pull_request:
 
 permissions:
@@ -33,3 +34,18 @@ jobs:
       - run: npm run check:build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  # Prueba contra los servidores reales de OpenFreeMap (estilos y atribución). Aparte y sin bloquear:
+  # si ese servicio externo falla o va lento, la integración no se rompe.
+  map-live:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:live

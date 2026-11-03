@@ -5,7 +5,7 @@ import { expect, test } from './fixtures';
 
 // La app lee los JSON reales generados por la ingesta (criterio de la Fase 1).
 const meta = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, '../../public/data/meta.json'), 'utf8'),
+  readFileSync(resolve(import.meta.dirname, '../../dist/data/meta.json'), 'utf8'),
 ) as { stationCount: number; sourceDate: string; demo: boolean };
 
 test('el inicio muestra las estaciones y la fecha de consulta de los datos reales', async ({

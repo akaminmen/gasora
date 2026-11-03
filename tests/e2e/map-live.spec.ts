@@ -1,10 +1,19 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 /**
  * Prueba contra los servidores reales de OpenFreeMap (sin estilo de sustitución): comprueba que el
  * estilo claro y el oscuro existen y que MapLibre muestra la atribución obligatoria
  * «© OpenMapTiles, Data from OpenStreetMap». Si no hay red, se omite (no cuenta como fallo).
+ *
+ * AISLADA del `npm run test:e2e` normal (depende de un servicio externo): se lanza con
+ * `npm run test:e2e:live` y, en la CI, en un trabajo aparte que no bloquea la integración.
  */
+const index = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, '../../dist/data/search-index.json'), 'utf8'),
+) as { postalCodes: { code: string; count: number }[] };
+const CP = [...index.postalCodes].sort((a, b) => b.count - a.count)[0]?.code ?? '29002';
 const STYLE = (name: string) => `https://tiles.openfreemap.org/styles/${name}`;
 
 test.describe('OpenFreeMap real', () => {
@@ -39,7 +48,7 @@ test.describe('OpenFreeMap real', () => {
       await page.addInitScript((t) => localStorage.setItem('gasora:theme:v1', t), theme);
       await page.goto('/');
       const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
-      await box.fill('29002');
+      await box.fill(CP);
       await box.press('Enter');
       await expect(page.getByTestId('map')).toHaveAttribute('data-ready', 'true');
       const attribution = page.locator('.maplibregl-ctrl-attrib');

@@ -4,7 +4,7 @@ import { type Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 /** Búsqueda, autocompletado con teclado, ubicación, filtros y caché de datos (Fase 3). */
-const DATA = resolve(import.meta.dirname, '../../public/data');
+const DATA = resolve(import.meta.dirname, '../../dist/data');
 const index = JSON.parse(readFileSync(resolve(DATA, 'search-index.json'), 'utf8')) as {
   postalCodes: { code: string; lat: number; lng: number; count: number }[];
   provinces: { name: string }[];

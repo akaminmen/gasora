@@ -8,10 +8,13 @@ import type { Page } from '@playwright/test';
  * comprueban nuestro código —pines, agrupación, sincronía, encuadre, tema— y que WebGL funciona en
  * Chromium sin interfaz (con SwiftShader). La apariencia del mapa real la revisa el usuario.
  */
-const DATA = resolve(import.meta.dirname, '../../public/data');
+const DATA = resolve(import.meta.dirname, '../../dist/data');
 const index = JSON.parse(readFileSync(resolve(DATA, 'search-index.json'), 'utf8')) as {
   postalCodes: { code: string; lat: number; lng: number; count: number }[];
+  municipalities: { name: string; count: number }[];
 };
+// El municipio con más estaciones: una zona densa, sea cual sea el conjunto de datos
+const BUSIEST = [...index.municipalities].sort((a, b) => b.count - a.count)[0]?.name ?? 'Madrid';
 const BIG_CP = [...index.postalCodes].sort((a, b) => b.count - a.count)[0];
 if (!BIG_CP) throw new Error('El índice no tiene códigos postales');
 const CP = BIG_CP.code;
@@ -97,6 +100,9 @@ test.describe('escritorio (1440 px): lista · mapa · ficha', () => {
     await expect(first.locator('[data-testid="price-pin-text"]')).toContainText(/\d,\d{3} €/);
     // El color nunca es el único indicador: cada pin lleva su símbolo ▼ — ▲
     await expect(first.locator('svg').first()).toBeVisible();
+    // La más barata lleva corona. Si está agrupada con otras a este zoom, al elegir su tarjeta
+    // (la primera de la lista) su pin aparece siempre.
+    await cards(page).first().locator('.station-card__link').click();
     await expect(page.locator('.price-pin__crown').first()).toBeVisible();
     // La leyenda del mapa explica los cuatro tramos
     const legend = page.getByRole('list', { name: 'Leyenda de precios' });
@@ -206,7 +212,7 @@ test.describe('escritorio (1440 px): lista · mapa · ficha', () => {
     page,
   }) => {
     await page.goto('/');
-    await search(page).fill('Madrid');
+    await search(page).fill(BUSIEST);
     await page.getByRole('group', { name: 'Municipio' }).getByRole('option').first().click();
     await expect(map(page)).toHaveAttribute('data-ready', 'true');
     await expect(cards(page).first()).toBeVisible();

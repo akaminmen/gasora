@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:e2e": "vite build --mode e2e",
+    "build:e2e": "vite build --mode e2e && tsx scripts/e2e-data.ts --out dist/data",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "ingest": "tsx scripts/ingest.ts",
     "ingest:fixtures": "tsx scripts/ingest.ts --fixtures",
@@ -21,6 +21,7 @@
     "size": "tsx scripts/measure-size.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test -c playwright.live.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write ."

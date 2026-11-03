@@ -8,7 +8,7 @@ import type { Locator, Page } from '@playwright/test';
  * reducido y gestos del mapa. Los gestos táctiles reales (dedo) no se pueden reproducir en
  * Chromium sin interfaz: se prueban con eventos de puntero de tipo «touch» y con ratón.
  */
-const DATA = resolve(import.meta.dirname, '../../public/data');
+const DATA = resolve(import.meta.dirname, '../../dist/data');
 const index = JSON.parse(readFileSync(resolve(DATA, 'search-index.json'), 'utf8')) as {
   postalCodes: { code: string; count: number }[];
 };
