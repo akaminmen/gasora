@@ -4,7 +4,7 @@
 
 Gasora es una web app (PWA) gratuita y sin registro para conductores de España. Responde a una pregunta: «¿dónde repostar más barato cerca de mí ahora mismo?», con los datos abiertos de precios de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico.
 
-> Estado: **Fase 2 de 7** (sistema de diseño y shell). Hay ingesta de datos reales, sistema de diseño con tema claro y oscuro, componentes, galería `/ui-kit`, router, cabecera y navegación móvil. El buscador, la ubicación, el mapa, la ficha, los favoritos y la calculadora llegan en las fases siguientes. El plan completo está en [GASORA-PLAN.md](GASORA-PLAN.md).
+> Estado: **Fase 3 de 7** (capa de datos, búsqueda y ubicación). Hay ingesta de datos reales, sistema de diseño con tema claro (por defecto) y oscuro, búsqueda por provincia, municipio o código postal con autocompletado y teclado, «Usar mi ubicación», filtros de combustible, radio, orden y marcas, y una lista de resultados con ranking por tramos de precio. El mapa, la ficha, los favoritos y la calculadora llegan en las fases siguientes.
 
 ## Cómo funciona
 
@@ -52,6 +52,7 @@ npm run ingest:fixtures
 | `npm run ingest:fixtures`                               | Igual, con la muestra de `fixtures/` (datos de demostración)                                                                                                                                              |
 | `npm run check:data`                                    | Valida el contenido de `public/data/`                                                                                                                                                                     |
 | `npm run cadence`                                       | Mide cada cuánto cambian los precios (ejecutar varias veces con horas de diferencia; resultado en `docs/cadencia.json`)                                                                                   |
+| `npm run size`                                          | Tamaño de los ficheros de datos en bruto, gzip y brotli (carga inicial y con el índice de búsqueda)                                                                                                       |
 | `npm test`                                              | Tests unitarios (Vitest)                                                                                                                                                                                  |
 | `npm run test:e2e`                                      | Tests de navegador (Playwright): humo, **layout**, accesibilidad (axe). Compila con `build:e2e` y sirve la app solos. Requiere `npx playwright install chromium` la primera vez y datos en `public/data/` |
 | `npm run lint` / `npm run typecheck` / `npm run format` | Calidad de código                                                                                                                                                                                         |
@@ -62,8 +63,7 @@ Si un test e2e se queda esperando, puede haber un servidor antiguo en el puerto 
 
 ```
 .github/workflows/   ci.yml (calidad) y deploy.yml (ingesta + despliegue a GitHub Pages)
-design/              referencia del diseño aprobado (solo lectura; ver design/README.md)
-docs/                STATUS.md (resumen de cierre), decisions/ (ADR), informes y guías
+docs/                decisions/ (ADR) y mediciones
 fixtures/            muestra real recortada de la API del Ministerio
 scripts/             ingesta: ministry, normalize, brands, validate, search-index, run-ingest…
 src/                 la app: app/ (router, shell), components/ui/, features/, lib/, stores/, styles/
