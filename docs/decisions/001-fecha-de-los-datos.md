@@ -9,7 +9,7 @@ El plan (secciones 3.3 y 9.6) mostraría «Datos del Ministerio actualizados el 
 ## Decisión
 
 - `meta.json` guarda `generatedAt` (cuándo se generaron los ficheros) y `sourceDate` (la `Fecha` de la API convertida de hora de Madrid a UTC).
-- La interfaz muestra: «Datos del Ministerio consultados el dd/mm/aaaa, hh:mm» y «Se actualizan cada 30 minutos aproximadamente».
+- La interfaz muestra: «Datos del Ministerio consultados el dd/mm/aaaa, hh:mm». No se afirma ninguna frecuencia de actualización, porque no está medida (la versión inicial añadía «Se actualizan cada 30 minutos aproximadamente» y se retiró).
 - No se usa «actualizados» como si fuera la hora de cambio de los precios.
 
 ## Consecuencias

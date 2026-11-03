@@ -66,7 +66,7 @@ export function AboutPage() {
             <b className="text-ink tabular-nums">
               {data ? formatDateTime(data.meta.sourceDate) : '…'}
             </b>
-            . Se actualizan cada 30 minutos aproximadamente.
+            .
           </p>
         </InfoCard>
 
