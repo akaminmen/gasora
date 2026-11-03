@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { BIG_CP, someStation } from './data';
 import { expect, test } from './fixtures';
 
 /** Accesibilidad automática (WCAG 2.2 AA) en la galería y en las pantallas, en claro y oscuro. */
@@ -96,6 +97,58 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(
           page.getByRole('heading', { name: 'No encontramos gasolineras aquí' }),
         ).toBeVisible();
+        await expectNoViolations(page);
+      });
+    });
+  }
+}
+
+/** Fase 5: favoritos con contenido, calculadora con resultado y ficha de una estación. */
+for (const theme of ['light', 'dark'] as const) {
+  for (const width of [390, 1440]) {
+    test.describe(`axe, pantallas de la Fase 5 a ${width} px, tema ${theme}`, () => {
+      test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.addInitScript(
+          ([t, id]) => {
+            localStorage.setItem('gasora:theme:v1', t as string);
+            localStorage.setItem('gasora:favorites:v1', JSON.stringify([id, '99999999']));
+          },
+          [theme, someStation().id],
+        );
+      });
+
+      test('favoritos con una estación y una que ya no existe', async ({ page }) => {
+        await page.goto('/favoritos');
+        await expect(page.getByTestId('favorites-list')).toBeVisible();
+        await expectNoViolations(page);
+      });
+
+      test('calculadora con resultado', async ({ page }) => {
+        await page.goto('/');
+        const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
+        await box.fill(BIG_CP);
+        await box.press('Enter');
+        await expect(page.getByTestId('station-card').first()).toBeVisible();
+        await page
+          .getByRole('navigation', { name: 'Principal' })
+          .filter({ visible: true })
+          .getByRole('link', { name: 'Calculadora' })
+          .click();
+        await expect(page.getByTestId('calc-result')).toBeVisible();
+        await expectNoViolations(page);
+      });
+
+      test('ficha de una estación', async ({ page }) => {
+        await page.goto(`/e/${someStation().id}`);
+        await expect(page.getByTestId('station-detail')).toBeVisible();
+        await expectNoViolations(page);
+      });
+
+      test('ficha de una estación que no existe', async ({ page }) => {
+        await page.goto('/e/99999999');
+        await expect(page.getByRole('heading', { name: /ya no está disponible/ })).toBeVisible();
         await expectNoViolations(page);
       });
     });

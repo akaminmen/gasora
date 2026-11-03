@@ -1,4 +1,5 @@
 import { type Page } from '@playwright/test';
+import { someStation, sellers } from './data';
 import { expect, test } from './fixtures';
 
 /**
@@ -105,7 +106,8 @@ async function inspectCards(page: Page): Promise<string[]> {
           problems.push(`${label}: el precio desborda`);
         const v = value.getBoundingClientRect();
         const u = unit.getBoundingClientRect();
-        if (Math.abs(v.top - u.top) > 20)
+        // Misma línea: la unidad solapa en vertical con el número y empieza a su derecha
+        if (u.top >= v.bottom - 1 || u.bottom <= v.top + 1 || u.left < v.right - 1)
           problems.push(`${label}: la unidad €/L se parte del número`);
         // Ningún ancestro con overflow distinto de visible recorta el precio.
         for (let node = amount.parentElement; node; node = node.parentElement) {
@@ -441,4 +443,105 @@ for (const width of [390, 768, 1440]) {
       expect(mapBox?.height).toBeGreaterThan(150);
     }
   });
+}
+
+// Pantallas de la Fase 5 con contenido real: favoritos, calculadora y ficha (columna de ≈ 720 px).
+const FAV_IDS = () => [
+  someStation().id,
+  ...sellers('g95e5')
+    .slice(1, 3)
+    .map((s) => s.id),
+  '99999999',
+];
+
+async function openPhase5(
+  page: Page,
+  screen: 'favoritos' | 'ficha',
+  width: number,
+  theme: 'light' | 'dark',
+  fontScale = 100,
+) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(
+    ([t, ids]) => {
+      localStorage.setItem('gasora:theme:v1', t as string);
+      localStorage.setItem('gasora:favorites:v1', JSON.stringify(ids));
+    },
+    [theme, FAV_IDS()],
+  );
+  await page.goto(screen === 'favoritos' ? '/favoritos' : `/e/${someStation().id}`);
+  await expect(page.locator('main')).toBeVisible();
+  if (fontScale !== 100) {
+    await page.evaluate((scale) => {
+      document.documentElement.style.fontSize = `${scale}%`;
+    }, fontScale);
+  }
+  await page.evaluate(() => document.fonts.ready);
+}
+
+for (const theme of THEMES) {
+  for (const width of WIDTHS) {
+    for (const screen of ['favoritos', 'ficha'] as const) {
+      test(`${screen} sin solapes ni desbordes a ${width} px, tema ${theme}`, async ({ page }) => {
+        await openPhase5(page, screen, width, theme);
+        if (screen === 'favoritos') {
+          await expect(page.getByTestId('favorites-list')).toBeVisible();
+          expect(await inspectCards(page)).toEqual([]);
+        } else {
+          await expect(page.getByTestId('station-detail')).toBeVisible();
+        }
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
+        // En escritorio es una columna centrada de ≈ 720 px
+        if (width >= 1024) {
+          const box = await page.locator('main > div').first().boundingBox();
+          expect(box?.width).toBeLessThanOrEqual(720.5);
+          expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - width / 2)).toBeLessThan(2);
+        }
+        const small = await page.evaluate(() =>
+          [
+            ...document.querySelectorAll<HTMLElement>(
+              'main button:not(.station-card__link), main summary',
+            ),
+          ]
+            .filter((el) => el.getBoundingClientRect().width > 0)
+            .filter((el) => el.getBoundingClientRect().height < 43.5)
+            .map(
+              (el) =>
+                `${el.tagName} ${el.getAttribute('aria-label') ?? el.textContent?.slice(0, 20)}`,
+            ),
+        );
+        expect(small, 'zonas táctiles menores de 44 px').toEqual([]);
+      });
+    }
+  }
+}
+
+// 1440 px no se prueba al 200 %: emulado con font-size los puntos de corte (en rem) no se mueven como
+// en un navegador real, y la cabecera de escritorio no cabría. 390 y 768 sí.
+for (const width of [390, 768]) {
+  for (const screen of ['favoritos', 'ficha'] as const) {
+    test(`${screen} a ${width} px con el texto al 200 %: sin solapes ni desbordes`, async ({
+      page,
+    }) => {
+      await openPhase5(page, screen, width, 'light', 200);
+      if (screen === 'favoritos') {
+        await expect(page.getByTestId('favorites-list')).toBeVisible();
+        expect(await inspectCards(page)).toEqual([]);
+      } else {
+        await expect(page.getByTestId('station-detail')).toBeVisible();
+        const price = await page.getByTestId('detail-price').evaluate((el) => ({
+          over: el.scrollWidth > el.clientWidth + 0.5,
+        }));
+        expect(price.over, 'el precio de la ficha desborda').toBe(false);
+      }
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
+    });
+  }
 }
