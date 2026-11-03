@@ -29,6 +29,16 @@
       "preciosCambiados": 6469,
       "estacionesNuevas": 34,
       "estacionesRetiradas": 27
+    },
+    {
+      "medidoEn": "2026-11-03T12:29:52.201Z",
+      "fechaApi": "03/11/2026 13:29:47",
+      "estaciones": 11355,
+      "priceHash": "fdf73b0230c6",
+      "minutosDesdeLaAnterior": 5923,
+      "preciosCambiados": 7279,
+      "estacionesNuevas": 66,
+      "estacionesRetiradas": 47
     }
   ]
 }
