@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Tests de layout (sección 12 del plan). Claude Code no puede ver la interfaz, así que el aspecto
- * se verifica midiendo cajas: sin solapes, sin desbordes, precios sin recortar y zonas táctiles de
+ * Tests de layout (sección 12 del plan). El aspecto no se revisa a ojo: se verifica
+ * midiendo cajas: sin solapes, sin desbordes, precios sin recortar y zonas táctiles de
  * 44×44 px. Se ejecutan sobre /ui-kit con datos extremos (sección 9.7, regla 6): rótulo de 86
  * caracteres, dirección de 104, precio 1,999, ahorro de 3 cifras, sin ahorro y sin badge.
  */
@@ -13,7 +13,7 @@ const EPS = 0.01;
 
 async function openKit(page: Page, width: number, theme: 'light' | 'dark', fontScale = 100) {
   await page.setViewportSize({ width, height: 900 });
-  await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript((t) => localStorage.setItem('gasora:theme:v1', t), theme);
   await page.goto('/ui-kit');
   await expect(
@@ -302,7 +302,8 @@ for (const theme of THEMES) {
   for (const width of WIDTHS) {
     test(`las pantallas no desbordan a ${width} px, tema ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript((t) => localStorage.setItem('gasora:theme:v1', t), theme);
       for (const route of ROUTES) {
         await page.goto(route);
         await expect(page.locator('main')).toBeVisible();
@@ -349,4 +350,39 @@ for (const fontScale of [100, 200]) {
     }
     expect(failures).toEqual([]);
   });
+}
+
+// Pantalla de resultados con datos reales (la provincia de Málaga: rótulos y direcciones reales).
+for (const theme of THEMES) {
+  for (const width of WIDTHS) {
+    test(`resultados reales sin solapes ni desbordes a ${width} px, tema ${theme}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript((t) => localStorage.setItem('gasora:theme:v1', t), theme);
+      await page.goto('/');
+      const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
+      await box.fill('malag');
+      await box.press('Enter');
+      await expect(page.getByTestId('results-list')).toBeVisible();
+      await page.getByRole('button', { name: 'Ver más' }).click();
+      await page.evaluate(() => document.fonts.ready);
+
+      expect(await inspectCards(page)).toEqual([]);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
+      // Controles de la cabecera de resultados: zonas táctiles de 44 px y sin salirse
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('main button, main input[type="range"]')]
+          .filter((el) => el.getBoundingClientRect().width > 0)
+          .map((el) => ({ el, r: el.getBoundingClientRect() }))
+          .filter(({ r }) => r.height < 43.5 || r.width < 43.5)
+          .map(({ el }) => `${el.tagName} «${el.textContent?.slice(0, 20) ?? ''}»`),
+      );
+      expect(small, 'zonas táctiles menores de 44 px').toEqual([]);
+    });
+  }
 }
