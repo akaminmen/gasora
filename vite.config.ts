@@ -25,6 +25,19 @@ function spaFallback(): Plugin {
 
 export default defineConfig({
   base,
+  // MapLibre va en un trozo aparte que solo se descarga al ver resultados (ADR 012): ~1,1 MB sin comprimir.
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rolldownOptions: {
+      output: {
+        // El worker de MapLibre es un módulo JS: con extensión .js cualquier servidor lo sirve como JavaScript
+        assetFileNames: (asset) =>
+          asset.names.some((name) => name.startsWith('maplibre-gl-worker'))
+            ? 'assets/[name]-[hash].js'
+            : 'assets/[name]-[hash][extname]',
+      },
+    },
+  },
   plugins: [react(), tailwindcss(), spaFallback()],
   test: {
     include: ['tests/unit/**/*.test.ts'],
