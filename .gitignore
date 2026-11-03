@@ -1,0 +1,10 @@
+node_modules
+dist
+public/data
+.cache
+playwright-report
+test-results
+*.log
+.env
+.env.*
+!.env.e2e
