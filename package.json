@@ -18,6 +18,7 @@
     "check:data": "tsx scripts/check-data.ts",
     "check:build": "tsx scripts/check-build.ts",
     "cadence": "tsx scripts/cadence.ts",
+    "size": "tsx scripts/measure-size.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",

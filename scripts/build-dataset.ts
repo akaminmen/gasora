@@ -9,6 +9,7 @@ import {
 import {
   normalizeStations,
   parseMineturDate,
+  toPublishedStation,
   type DropReason,
   type Dropped,
   type RawStation,
@@ -58,7 +59,8 @@ export function buildDataset(
 
   const result = normalizeStations(raw.ListaEESSPrecio);
   const sourceDate = parseMineturDate(raw.Fecha);
-  const stations = sortById(result.stations);
+  const normalized = sortById(result.stations);
+  const stations = normalized.map(toPublishedStation);
 
   const stationsFile: StationsFile = {
     schema: SCHEMA_VERSION,
@@ -83,7 +85,7 @@ export function buildDataset(
     },
     stations: stationsFile,
     prices,
-    searchIndex: buildSearchIndex(stations),
+    searchIndex: buildSearchIndex(normalized),
   });
 
   const dropsByReason: IngestReport['dropsByReason'] = {};

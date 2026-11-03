@@ -4,6 +4,26 @@ import { brandKeyOf } from './brands';
 /** Estación tal cual llega de la API: todos los valores son texto. */
 export type RawStation = Record<string, unknown>;
 
+/** Estación con los nombres de municipio y provincia, que solo se usan para el índice de búsqueda. */
+export type NormalizedStation = Station & { m: string; p: string };
+
+/** Quita los campos que no se publican en `stations.{hash}.json`. */
+export function toPublishedStation(s: NormalizedStation): Station {
+  return {
+    id: s.id,
+    b: s.b,
+    n: s.n,
+    a: s.a,
+    z: s.z,
+    pid: s.pid,
+    mid: s.mid,
+    lat: s.lat,
+    lng: s.lng,
+    h: s.h,
+    s: s.s,
+  };
+}
+
 /** Campo `Precio …` de la API para cada combustible del MVP. */
 export const FUEL_FIELDS: Record<FuelId, string> = {
   g95e5: 'Precio Gasolina 95 E5',
@@ -37,7 +57,7 @@ export interface OutOfRangePrice {
 }
 
 export interface NormalizeResult {
-  stations: Station[];
+  stations: NormalizedStation[];
   /** id → precios en milésimas de euro, en el orden de FUELS */
   prices: Record<string, (number | null)[]>;
   dropped: Dropped[];
@@ -87,7 +107,7 @@ function postalCode(value: unknown): string {
 const inSpain = (lat: number, lng: number) => lat >= 27 && lat <= 44 && lng >= -19 && lng <= 5;
 
 export function normalizeStations(raw: RawStation[]): NormalizeResult {
-  const stations: Station[] = [];
+  const stations: NormalizedStation[] = [];
   const prices: Record<string, (number | null)[]> = {};
   const dropped: Dropped[] = [];
   const outOfRangePrices: OutOfRangePrice[] = [];

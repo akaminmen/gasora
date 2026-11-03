@@ -1,4 +1,5 @@
-import { SCHEMA_VERSION, type SearchIndex, type Station } from '../src/lib/data-schema';
+import { SCHEMA_VERSION, type SearchIndex } from '../src/lib/data-schema';
+import type { NormalizedStation } from './normalize';
 
 interface Acc {
   name: string;
@@ -14,7 +15,12 @@ interface Acc {
 
 const round = (n: number) => Math.round(n * 1e5) / 1e5;
 
-function add(map: Map<string | number, Acc>, key: string | number, s: Station, name: string) {
+function add(
+  map: Map<string | number, Acc>,
+  key: string | number,
+  s: NormalizedStation,
+  name: string,
+) {
   const acc = map.get(key) ?? {
     name,
     pid: s.pid,
@@ -45,7 +51,7 @@ const bbox = (a: Acc): [number, number, number, number] => [
 ];
 
 /** Índice de búsqueda: provincias, municipios y códigos postales con centroide y nº de estaciones. */
-export function buildSearchIndex(stations: Station[]): SearchIndex {
+export function buildSearchIndex(stations: NormalizedStation[]): SearchIndex {
   const provinces = new Map<string | number, Acc>();
   const municipalities = new Map<string | number, Acc>();
   const postalCodes = new Map<string | number, Acc>();

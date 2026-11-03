@@ -25,6 +25,18 @@ describe('buildDataset con la muestra real (fixtures)', () => {
     expect(dataset.meta.sourceDate).toBe('2026-10-28T15:39:26.000Z');
   });
 
+  it('no publica municipio ni provincia en las estaciones: sus nombres están en el índice', () => {
+    const first = dataset.stations.stations[0];
+    expect(first).toBeDefined();
+    expect(first).not.toHaveProperty('m');
+    expect(first).not.toHaveProperty('p');
+    const { provinces, municipalities } = dataset.searchIndex;
+    for (const s of dataset.stations.stations) {
+      expect(provinces.some((p) => p.id === s.pid)).toBe(true);
+      expect(municipalities.some((m) => m.id === s.mid)).toBe(true);
+    }
+  });
+
   it('descarta y registra las 5 coordenadas defectuosas de la Fase 0', () => {
     const bad = report.dropped.filter((d) =>
       ['coordenadasACero', 'coordenadasIntercambiadas', 'fueraDeEspana'].includes(d.reason),

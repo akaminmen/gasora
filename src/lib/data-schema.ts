@@ -37,10 +37,7 @@ export const stationSchema = z.object({
   a: z.string(),
   /** Código postal (5 dígitos o vacío) */
   z: z.string().regex(/^(\d{5})?$/),
-  /** Municipio */
-  m: z.string(),
-  /** Provincia */
-  p: z.string(),
+  /** Provincia y municipio: solo los ids; los nombres están en el índice de búsqueda (ADR 011). */
   pid: z.number().int(),
   mid: z.number().int(),
   lat: z.number().min(27).max(44),
