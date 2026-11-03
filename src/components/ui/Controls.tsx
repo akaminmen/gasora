@@ -2,6 +2,7 @@ import { ChevronDown, MapPin, Store } from 'lucide-react';
 import { useId, useState } from 'react';
 import { FUELS, type FuelId } from '../../lib/data-schema';
 import { FUEL_LABELS } from '../../lib/fuels';
+import type { SortKey } from '../../lib/resultset';
 
 export function FuelChip({
   label,
@@ -56,7 +57,7 @@ export function FuelChips({
   );
 }
 
-export type SortKey = 'price' | 'distance';
+export type { SortKey };
 
 /** Selector de orden: precio (por defecto) o distancia. */
 export function SortControl({

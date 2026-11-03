@@ -1,15 +1,11 @@
 import { Calculator, Heart, House, Info } from 'lucide-react';
-import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { Logo } from '../components/ui/Logo';
-import { SearchField } from '../components/ui/SearchField';
+import { SearchBox } from '../features/search/SearchBox';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { ToastHost } from '../components/ui/Feedback';
 import { formatDateTime } from '../lib/format';
 import { useGasoraData } from '../lib/useGasoraData';
-import { useToastStore } from '../stores/toast';
-
-export const SEARCH_PENDING = 'La búsqueda estará disponible muy pronto.';
 
 const DESKTOP_LINKS = [
   { to: '/', label: 'Inicio', end: true },
@@ -47,8 +43,6 @@ function Footer() {
 
 export function AppShell() {
   const { pathname } = useLocation();
-  const showToast = useToastStore((s) => s.show);
-  const [query, setQuery] = useState('');
   const isHome = pathname === '/';
 
   return (
@@ -69,12 +63,7 @@ export function AppShell() {
         </Link>
         {!isHome && (
           <div className="hidden max-w-[460px] flex-1 lg:block">
-            <SearchField
-              size="compact"
-              value={query}
-              onChange={setQuery}
-              onSubmit={() => showToast(SEARCH_PENDING)}
-            />
+            <SearchBox size="compact" />
           </div>
         )}
         <nav aria-label="Principal" className="ml-auto hidden items-center gap-1 lg:flex">

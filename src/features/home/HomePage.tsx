@@ -1,13 +1,14 @@
 import { Check, LocateFixed, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
-import { SEARCH_PENDING } from '../../app/AppShell';
 import { Button } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
-import { SearchField } from '../../components/ui/SearchField';
 import { formatDateTime } from '../../lib/format';
 import { useGasoraData } from '../../lib/useGasoraData';
-import { useToastStore } from '../../stores/toast';
+import { useLocationStore } from '../../stores/location';
+import { useSearchStore } from '../../stores/search';
 import { useUiStore } from '../../stores/ui';
+import { ResultsView } from '../results/ResultsView';
+import { SearchBox } from '../search/SearchBox';
+import { LocationPanel } from './LocationPanel';
 import { HeroPreview } from './HeroPreview';
 
 function DataStatus() {
@@ -45,12 +46,27 @@ function DataStatus() {
   );
 }
 
-/** Inicio: hero de primera visita. Buscar y ubicar llegan con la capa de búsqueda (Fase 3). */
+/** Inicio: hero de primera visita; con una búsqueda o la ubicación en curso, los resultados. */
 export function HomePage() {
+  const place = useSearchStore((s) => s.place);
+  const flow = useLocationStore((s) => s.flow);
+  if (flow.step !== 'idle' || place) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 py-6 lg:px-6">
+        <div className="max-w-[600px]">
+          <SearchBox size="default" />
+        </div>
+        {flow.step !== 'idle' ? <LocationPanel /> : place && <ResultsView place={place} />}
+      </div>
+    );
+  }
+  return <Hero />;
+}
+
+function Hero() {
   const fuel = useUiStore((s) => s.fuel);
   const setFuel = useUiStore((s) => s.setFuel);
-  const showToast = useToastStore((s) => s.show);
-  const [query, setQuery] = useState('');
+  const startLocation = useLocationStore((s) => s.start);
 
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-10 px-4 py-6 lg:flex-row lg:items-center lg:gap-16 lg:px-16 lg:py-12">
@@ -64,19 +80,14 @@ export function HomePage() {
         </p>
 
         <div className="max-w-[600px]">
-          <SearchField
-            size="hero"
-            value={query}
-            onChange={setQuery}
-            onSubmit={() => showToast(SEARCH_PENDING)}
-          />
+          <SearchBox size="hero" />
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Button
             size="lg"
             icon={<LocateFixed width={20} height={20} aria-hidden />}
-            onClick={() => showToast(SEARCH_PENDING)}
+            onClick={() => void startLocation()}
           >
             Usar mi ubicación
           </Button>

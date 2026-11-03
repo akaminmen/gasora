@@ -19,6 +19,9 @@ export function SearchField({
   listboxId,
   expanded = false,
   activeId,
+  onFocus,
+  onBlur,
+  autoFocus = false,
   children,
 }: {
   value: string;
@@ -31,6 +34,9 @@ export function SearchField({
   listboxId?: string;
   expanded?: boolean;
   activeId?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  autoFocus?: boolean;
   /** Sugerencias (componente Suggestions) */
   children?: ReactNode;
 }) {
@@ -54,6 +60,9 @@ export function SearchField({
           aria-activedescendant={activeId}
           aria-autocomplete="list"
           autoComplete="off"
+          autoFocus={autoFocus}
+          onFocus={onFocus}
+          onBlur={onBlur}
           value={value}
           onChange={handle}
           placeholder={placeholder}
