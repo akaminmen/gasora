@@ -1,6 +1,6 @@
 /*
- * Tokens de diseño (sección 9.2 del plan). Tema claro por defecto; el oscuro se activa con
- * data-theme="dark" o, si no hay elección manual, con la preferencia del sistema.
+ * Tokens de diseño (sección 9.2 del plan). Tema claro por defecto, sin tener en cuenta la preferencia del
+ * sistema; el oscuro solo se activa con data-theme="dark" (elección manual, ADR 010).
  * Los tokens marcados «extra» no están en la tabla del plan: se añadieron para componentes.
  */
 :root {
@@ -69,32 +69,4 @@
   --avatar-3-fg: #a5b4fc;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.35);
   --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 44px rgb(0 0 0 / 0.6);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-
-    --brand-50: #1b2147;
-    --brand-100: #232b5e;
-    --brand-link: #a5b4fc;
-    --ink: #e6ecf5;
-    --muted: #9aa8bc;
-    --bg: #0a1220;
-    --surface: #141c2b;
-    --surface-2: #1a2436;
-    --border: #243049;
-    --focus: #a5b4fc;
-
-    --brand-logo: #818cf8;
-    --handle: #3a4a66;
-    --avatar-1-bg: #272f6b;
-    --avatar-1-fg: #c7d2fe;
-    --avatar-2-bg: #243049;
-    --avatar-2-fg: #e6ecf5;
-    --avatar-3-bg: #1b2147;
-    --avatar-3-fg: #a5b4fc;
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.35);
-    --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 44px rgb(0 0 0 / 0.6);
-  }
 }

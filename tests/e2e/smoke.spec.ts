@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // La app lee los JSON reales generados por la ingesta (criterio de la Fase 1).
 const meta = JSON.parse(
@@ -63,10 +63,9 @@ test('las rutas del plan responden y el 404 es amable', async ({ page }) => {
 });
 
 test('el tema se puede cambiar, se recuerda y no parpadea al recargar', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const html = page.locator('html');
-  await expect(html).not.toHaveAttribute('data-theme', /.*/);
+  await expect(html).not.toHaveAttribute('data-theme', 'dark');
   await page.getByTestId('theme-toggle').click();
   await expect(html).toHaveAttribute('data-theme', 'dark');
   await page.reload();
@@ -75,11 +74,28 @@ test('el tema se puede cambiar, se recuerda y no parpadea al recargar', async ({
   expect(bg).toBe('rgb(10, 18, 32)'); // --bg oscuro #0A1220
 });
 
-test('sin elección manual el tema sigue al sistema', async ({ page }) => {
+const BG_LIGHT = 'rgb(247, 250, 252)';
+const BG_DARK = 'rgb(10, 18, 32)';
+const bodyBg = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+test('sin elección guardada la página carga clara aunque el sistema esté en oscuro', async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe('rgb(10, 18, 32)');
+  expect(await page.evaluate(() => localStorage.getItem('gasora:theme:v1'))).toBeNull();
+  expect(await bodyBg(page)).toBe(BG_LIGHT);
+  await expect(page.getByTestId('theme-toggle')).toHaveAccessibleName('Cambiar a tema oscuro');
+});
+
+test('con «dark» guardado la página carga oscura aunque el sistema esté en claro', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => localStorage.setItem('gasora:theme:v1', 'dark'));
+  await page.goto('/');
+  expect(await bodyBg(page)).toBe(BG_DARK);
+  await expect(page.getByTestId('theme-toggle')).toHaveAccessibleName('Cambiar a tema claro');
 });
 
 test('el combustible elegido se recuerda', async ({ page }) => {

@@ -8,7 +8,7 @@ Se leyó todo `design/` (CSS, las 13 pantallas y `README.md`). En conflicto mand
 
 - Los tokens son los de la sección 9.2 del plan (`src/styles/tokens.css`). Difieren del CSS del diseño en el enlace del tema claro (plan `#4338CA`, diseño `#4F46E5`) y en los fondos suaves del oscuro (plan `#1B2147` / `#232B5E`, diseño `#1B2145` / `#272F6B`).
 - Tokens extra (no están en la tabla del plan): `--on-brand`, `--brand-logo` (el «ora» del logotipo: `#818CF8` en oscuro porque `#4F46E5` sobre `#0A1220` da 2,98:1), `--brand-logo-arc`, `--handle`, `--avatar-1..3`, sombras y la escala de precios.
-- Tema: `data-theme="light|dark"` en `<html>`; sin elección manual manda `prefers-color-scheme`. Un script en línea de `index.html` aplica la elección antes del primer pintado. Se guarda en `gasora:theme:v1`. El combustible, en `gasora:fuel:v1`.
+- Tema: `data-theme="light|dark"` en `<html>`; el tema por defecto es el claro y no se consulta `prefers-color-scheme` (ADR 010). Un script en línea de `index.html` aplica la elección antes del primer pintado. Se guarda en `gasora:theme:v1`. El combustible, en `gasora:fuel:v1`.
 - Tailwind v4 con `@theme inline` apunta a los tokens (`bg-surface`, `text-ink`, `border-line`…): no se usan variantes `dark:`.
 
 ## Fuentes

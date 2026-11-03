@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { FUELS, type FuelId } from '../lib/data-schema';
 import { readStorage, writeStorage } from '../lib/storage';
 
-export type ThemeChoice = 'system' | 'light' | 'dark';
+export type ThemeChoice = 'light' | 'dark';
 
 export const THEME_KEY = 'gasora:theme:v1';
 export const FUEL_KEY = 'gasora:fuel:v1';
@@ -10,7 +10,7 @@ export const DEFAULT_FUEL: FuelId = 'g95e5';
 
 function storedTheme(): ThemeChoice {
   const value = readStorage(THEME_KEY);
-  return value === 'light' || value === 'dark' ? value : 'system';
+  return value === 'dark' ? 'dark' : 'light';
 }
 
 function storedFuel(): FuelId {
@@ -18,11 +18,9 @@ function storedFuel(): FuelId {
   return FUELS.find((fuel) => fuel === value) ?? DEFAULT_FUEL;
 }
 
-/** «system» no fija nada y deja mandar a prefers-color-scheme. */
+/** El tema por defecto es el claro; no se consulta la preferencia del sistema. */
 function applyTheme(choice: ThemeChoice) {
-  const root = document.documentElement;
-  if (choice === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', choice);
+  document.documentElement.setAttribute('data-theme', choice);
 }
 
 interface UiState {

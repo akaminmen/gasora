@@ -1,23 +1,11 @@
 import { Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useUiStore } from '../../stores/ui';
 
-const QUERY = '(prefers-color-scheme: dark)';
-
-/** Sigue el sistema hasta que el usuario elige; entonces recuerda su elección. */
+/** Claro por defecto; el oscuro solo si el usuario lo elige, y se recuerda. */
 export function ThemeToggle() {
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
-  const [systemDark, setSystemDark] = useState(() => window.matchMedia(QUERY).matches);
-
-  useEffect(() => {
-    const media = window.matchMedia(QUERY);
-    const onChange = () => setSystemDark(media.matches);
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
-
-  const dark = theme === 'dark' || (theme === 'system' && systemDark);
+  const dark = theme === 'dark';
   return (
     <button
       type="button"
