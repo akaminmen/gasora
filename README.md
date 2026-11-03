@@ -4,7 +4,7 @@
 
 Gasora es una web app (PWA) gratuita y sin registro para conductores de España. Responde a una pregunta: «¿dónde repostar más barato cerca de mí ahora mismo?», con los datos abiertos de precios de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico.
 
-> Estado: **Fase 3 de 7** (capa de datos, búsqueda y ubicación). Hay ingesta de datos reales, sistema de diseño con tema claro (por defecto) y oscuro, búsqueda por provincia, municipio o código postal con autocompletado y teclado, «Usar mi ubicación», filtros de combustible, radio, orden y marcas, y una lista de resultados con ranking por tramos de precio. El mapa, la ficha, los favoritos y la calculadora llegan en las fases siguientes.
+> Estado: **Fase 4 de 7** (mapa y hoja inferior). Hay ingesta de datos reales, sistema de diseño con tema claro (por defecto) y oscuro, búsqueda por provincia, municipio o código postal con autocompletado y teclado, «Usar mi ubicación», filtros de combustible, radio, orden y marcas, y resultados con ranking por tramos de precio sobre un mapa (MapLibre + OpenFreeMap) sincronizado con la lista y la ficha. En móvil, el mapa va con una hoja inferior de tres alturas. Los favoritos, la calculadora y la ficha completa llegan en las fases siguientes.
 
 ## Cómo funciona
 
@@ -76,7 +76,7 @@ Fuente: Ministerio para la Transición Ecológica y el Reto Demográfico — Pre
 
 Gasora es un proyecto independiente, no afiliado ni respaldado por el Ministerio. Los precios pueden diferir de los del surtidor. La fecha que muestra la app es la de la **consulta** al Ministerio, no la de actualización de los precios ([ADR 001](docs/decisions/001-fecha-de-los-datos.md)).
 
-Mapa (a partir de la Fase 4): © OpenMapTiles, Data from OpenStreetMap, servido por OpenFreeMap.
+Mapa: © OpenMapTiles, Data from OpenStreetMap, servido por OpenFreeMap.
 
 ## Licencia
 
