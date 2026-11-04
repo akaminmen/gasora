@@ -7,6 +7,7 @@ declare const __APP_BUILD__: string;
 
 /** Nombres de los logos que hay en `public/brands/` (lo genera el plugin de vite.config.ts). */
 declare module 'virtual:brand-files' {
-  const files: string[];
+  /** Nombre de archivo → versión (hash del contenido) */
+  const files: Record<string, string>;
   export default files;
 }

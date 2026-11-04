@@ -1,8 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { VitePWA } from 'vite-plugin-pwa';
+import { contentHash } from './scripts/brand-hash';
+import { E2E_LOGOS } from './scripts/e2e-logos';
 import {
   BRANDS_URL,
   FONTS_URL,
@@ -25,20 +28,75 @@ const owner = process.env['GITHUB_REPOSITORY_OWNER']?.toLowerCase() ?? 'akaminme
 const site = process.env['GASORA_SITE'] ?? `https://${owner}.github.io${base}`;
 const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'acerca'];
 
+/**
+ * Escribe en `index.html` el nombre con hash del fichero de estaciones (`stations.{hash}.json`,
+ * de `public/data/meta.json`) para que la app lo pida a la vez que `meta.json` en lugar de después.
+ * En el build de los tests (`--mode e2e`) los datos se generan después del build: el nombre queda
+ * vacío y `scripts/e2e-data.ts` lo escribe. Si falta `meta.json`, queda vacío y la app funciona igual.
+ */
+function stationsHint(mode: string): Plugin {
+  return {
+    name: 'gasora-stations-hint',
+    transformIndexHtml: (html) => {
+      let file = '';
+      const metaPath = resolve(import.meta.dirname, 'public/data/meta.json');
+      if (mode !== 'e2e' && existsSync(metaPath)) {
+        const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as { stationsFile?: string };
+        if (/^stations\.[0-9a-f]+\.json$/.test(meta.stationsFile ?? '')) file = meta.stationsFile!;
+      }
+      return html.replaceAll('%STATIONS_FILE%', file);
+    },
+  };
+}
+
+/** Carpeta de salida del build en curso, para que el service worker lea el `index.html` final. */
+const output = { dir: 'dist' };
+function outputDir(): Plugin {
+  return {
+    name: 'gasora-output-dir',
+    apply: 'build',
+    configResolved(config) {
+      output.dir = resolve(config.root, config.build.outDir);
+    },
+  };
+}
+
+/**
+ * Revisión de `index.html` en la precarga del service worker sin el nombre del fichero de
+ * estaciones: ese nombre cambia cada vez que cambian las estaciones y no debe provocar un aviso de
+ * «versión nueva» sin cambios de código. Si el nombre queda viejo en un `index.html` guardado, la app
+ * cae al camino normal (meta.json primero) sin errores.
+ */
+const stableIndexRevision = <T extends { url: string; revision: string | null }>(entries: T[]) => ({
+  manifest: entries.map((entry) => {
+    if (entry.url !== 'index.html') return entry;
+    const html = readFileSync(resolve(output.dir, 'index.html'), 'utf8').replace(
+      /(<meta name="gasora-stations" content=")[^"]*"/,
+      '$1"',
+    );
+    return { ...entry, revision: createHash('md5').update(html).digest('hex') };
+  }),
+});
+
 /** Logos de marca de `public/brands/` que existen (ver `src/lib/brand-logos.ts`). */
 const BRAND_FILES_ID = 'virtual:brand-files';
-/** En los tests e2e (`--mode e2e`) hay dos logos de prueba, que `scripts/e2e-data.ts` escribe en dist/brands. */
-const E2E_BRAND_FILES = ['ballenoil.svg', 'shell.svg'];
 
 function brandFiles(mode: string): Plugin {
   const dir = resolve(import.meta.dirname, 'public/brands');
   const resolved = `\0${BRAND_FILES_ID}`;
+  /** Nombre de archivo → versión (hash del contenido) de los logos que existen. */
   const list = () => {
-    const files = existsSync(dir)
-      ? readdirSync(dir).filter((name) => /\.(svg|webp|png)$/i.test(name))
-      : [];
-    if (mode === 'e2e') files.push(...E2E_BRAND_FILES);
-    return [...new Set(files)].sort();
+    const files: Record<string, string> = {};
+    if (existsSync(dir)) {
+      for (const name of readdirSync(dir).sort()) {
+        if (/\.(svg|webp|png)$/i.test(name))
+          files[name] = contentHash(readFileSync(resolve(dir, name)));
+      }
+    }
+    if (mode === 'e2e') {
+      for (const [name, svg] of Object.entries(E2E_LOGOS)) files[name] = contentHash(svg);
+    }
+    return files;
   };
   return {
     name: 'gasora-brand-files',
@@ -53,7 +111,7 @@ function brandFiles(mode: string): Plugin {
         if (module) server.moduleGraph.invalidateModule(module);
         server.ws.send({ type: 'full-reload' });
       };
-      server.watcher.on('add', reload).on('unlink', reload);
+      server.watcher.on('add', reload).on('unlink', reload).on('change', reload);
     },
   };
 }
@@ -163,6 +221,7 @@ export default defineConfig(({ mode }) => ({
         globIgnores: ['**/og-image.png', '**/404.html', 'data/**', 'brands/**'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
+        manifestTransforms: [stableIndexRevision],
         // Rutas de la SPA: se sirve index.html; los datos y el resto de ficheros, no
         navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/\/data\//, /\.[a-z0-9]+$/i],
@@ -228,6 +287,8 @@ export default defineConfig(({ mode }) => ({
     seoFiles(),
     spaFallback(),
     brandFiles(mode),
+    stationsHint(mode),
+    outputDir(),
   ],
   test: {
     include: ['tests/unit/**/*.test.ts'],

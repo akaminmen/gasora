@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KNOWN_BRANDS } from '../../scripts/brands';
+import { contentHash } from '../../scripts/brand-hash';
 import { MAX_SVG_BYTES, svgProblems } from '../../scripts/brand-validate';
 import { BRANDS_URL } from '../../scripts/pwa-caching';
 import { BRAND_LOGO_FILES, logoFileFor } from '../../src/lib/brand-logos';
@@ -78,5 +79,26 @@ describe('caché de los logos', () => {
     expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/brands/README.md')).toBe(false);
     expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/brands/repsol.svg?x=1')).toBe(false);
     expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/assets/logo.svg')).toBe(false);
+  });
+});
+
+describe('versión del logo en la URL', () => {
+  it('es de 8 caracteres hexadecimales y estable para el mismo contenido', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1z"/></svg>';
+    expect(contentHash(svg)).toMatch(/^[0-9a-f]{8}$/);
+    expect(contentHash(svg)).toBe(contentHash(svg));
+    expect(contentHash(Buffer.from(svg))).toBe(contentHash(svg));
+  });
+  it('cambia cuando cambia el contenido, aunque sea un solo carácter', () => {
+    expect(contentHash('<svg><path d="M0 0"/></svg>')).not.toBe(
+      contentHash('<svg><path d="M0 1"/></svg>'),
+    );
+  });
+  it('la caché de logos acepta la URL con ?v=hash y rechaza otras consultas', () => {
+    const base = 'https://akaminmen.github.io/gasora/brands/repsol.svg';
+    expect(BRANDS_URL.test(`${base}?v=3f2a91c0`)).toBe(true);
+    expect(BRANDS_URL.test(`${base}?v=3F2A91C0`)).toBe(false);
+    expect(BRANDS_URL.test(`${base}?v=3f2a91`)).toBe(false);
+    expect(BRANDS_URL.test(`${base}?x=1`)).toBe(false);
   });
 });

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { contentHash } from '../../scripts/brand-hash';
 import { sellers, stations } from './data';
 import { expect, test } from './fixtures';
 
@@ -21,7 +24,7 @@ test.describe('BrandLogo', () => {
     await expect(logo).toBeVisible();
     const img = logo.locator('img');
     await expect(img).toHaveAttribute('alt', '');
-    await expect(img).toHaveAttribute('src', /brands\/(ballenoil|shell)\.svg$/);
+    await expect(img).toHaveAttribute('src', /brands\/(ballenoil|shell)\.svg\?v=[0-9a-f]{8}$/);
     await expect
       .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
       .toBe(true);
@@ -74,7 +77,7 @@ test.describe('BrandLogo', () => {
   });
 
   test('si el archivo no carga, vuelve al avatar sin romper el diseño', async ({ page }) => {
-    await page.route('**/brands/ballenoil.svg', (route) => route.fulfill({ status: 404 }));
+    await page.route('**/brands/ballenoil.svg*', (route) => route.fulfill({ status: 404 }));
     await page.goto('/ui-kit');
     const card = page.locator('.station-card', { hasText: 'Ballenoil' }).first();
     await expect(card.locator('.brand-avatar')).toBeVisible();
@@ -87,5 +90,24 @@ test.describe('BrandLogo', () => {
     await page.goto('/ui-kit');
     await expect(page.locator('.price-pin__body').first()).toBeVisible();
     await expect(page.locator('.price-pin__body .brand-logo, .price-pin__body img')).toHaveCount(0);
+  });
+
+  test('la URL del logo lleva el hash de su contenido (?v=…) y el archivo se sirve', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto('/ui-kit');
+    // La tarjeta «Repsol» usa el logo real de public/brands/
+    const logo = page
+      .locator('.station-card', { hasText: 'Repsol' })
+      .locator('.brand-logo img')
+      .first();
+    const src = (await logo.getAttribute('src'))!;
+    const real = resolve(import.meta.dirname, '../../public/brands/repsol.svg');
+    const expected = contentHash(readFileSync(real));
+    expect(src.endsWith(`/brands/repsol.svg?v=${expected}`), src).toBe(true);
+    const response = await page.request.get(src);
+    expect(response.ok()).toBe(true);
+    expect(Buffer.compare(await response.body(), readFileSync(real))).toBe(0);
   });
 });

@@ -13,4 +13,4 @@ export const STYLE_URL = /^https:\/\/tiles\.openfreemap\.org\/(styles\/|sprites\
 export const FONTS_URL = /^https:\/\/tiles\.openfreemap\.org\/fonts\//;
 
 /** Logos de marca (`public/brands/`): solo se piden al servidor los que existen, y se guardan al verlos. */
-export const BRANDS_URL = /\/brands\/[^/?#]+\.(svg|webp|png)$/;
+export const BRANDS_URL = /\/brands\/[^/?#]+\.(svg|webp|png)(\?v=[0-9a-f]{8})?$/;

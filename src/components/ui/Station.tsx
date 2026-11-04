@@ -40,7 +40,7 @@ export function BrandAvatar({
   );
 }
 
-const AVAILABLE_LOGOS: ReadonlySet<string> = new Set(brandFiles);
+const AVAILABLE_LOGOS: ReadonlySet<string> = new Set(Object.keys(brandFiles));
 
 /**
  * Icono de la estación: el logo de la marca si el usuario lo ha aportado (`public/brands/`, ADR 015)
@@ -68,7 +68,7 @@ export function BrandLogo({
       aria-hidden="true"
     >
       <img
-        src={`${import.meta.env.BASE_URL}brands/${file}`}
+        src={`${import.meta.env.BASE_URL}brands/${file}?v=${brandFiles[file]}`}
         alt=""
         width={px}
         height={px}
