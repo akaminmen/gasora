@@ -61,7 +61,7 @@ export function HeroPreview() {
         <StatCard label="Ahorras en un depósito de 50 L" value={3.69} />
       </div>
       <p className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-surface px-2 py-px text-[0.625rem] whitespace-nowrap text-muted">
-        © OpenStreetMap contributors
+        OpenFreeMap © OpenMapTiles Data from OpenStreetMap
       </p>
       <p className="absolute right-6 bottom-6 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-muted shadow-soft">
         Ejemplo ilustrativo

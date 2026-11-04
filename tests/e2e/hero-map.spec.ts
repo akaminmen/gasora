@@ -44,7 +44,7 @@ test.describe('fondo de mapa de la ilustración del inicio', () => {
 
       await expect(hero.getByText('Ejemplo ilustrativo')).toBeVisible();
       await expect(hero.getByText('Ahorras en un depósito de 50 L')).toBeVisible();
-      const attribution = hero.getByText('© OpenStreetMap contributors');
+      const attribution = hero.getByText('OpenFreeMap © OpenMapTiles Data from OpenStreetMap');
       await expect(attribution).toBeVisible();
       const a = await attribution.boundingBox();
       expect(a!.x).toBeGreaterThanOrEqual(box!.x);
@@ -77,4 +77,32 @@ test('por debajo de lg la ilustración no descarga el fondo', async ({ page }) =
   await page.goto('/');
   await expect(page.getByTestId('hero-preview')).toBeHidden();
   expect(requests.some((u) => u.includes('hero-map'))).toBe(false);
+});
+
+test('la atribución no se solapa con la tarjeta ni con el rótulo a ningún ancho de escritorio', async ({
+  page,
+}) => {
+  for (const width of [1024, 1100, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const hero = page.getByTestId('hero-preview');
+    const attribution = (await hero
+      .getByText('OpenFreeMap © OpenMapTiles Data from OpenStreetMap')
+      .boundingBox())!;
+    const box = (await hero.locator('.map-sample').boundingBox())!;
+    expect(attribution.x, `${width}px`).toBeGreaterThanOrEqual(box.x);
+    expect(attribution.x + attribution.width, `${width}px`).toBeLessThanOrEqual(box.x + box.width);
+    for (const other of [
+      hero.getByText('Ahorras en un depósito de 50 L'),
+      hero.getByText('Ejemplo ilustrativo'),
+    ]) {
+      const o = (await other.boundingBox())!;
+      const apart =
+        attribution.y + attribution.height <= o.y ||
+        o.y + o.height <= attribution.y ||
+        attribution.x + attribution.width <= o.x ||
+        o.x + o.width <= attribution.x;
+      expect(apart, `${width}px`).toBe(true);
+    }
+  }
 });
