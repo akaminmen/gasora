@@ -150,6 +150,10 @@ export function AboutPage() {
             Gasora es un proyecto independiente, no afiliado ni respaldado por el Ministerio ni por
             ninguna marca de gasolineras.
           </p>
+          <p className="mt-2" data-testid="about-logos">
+            Los logos son marcas de sus respectivos propietarios y se muestran solo para identificar
+            la estación; Gasora no está afiliada a ellas.
+          </p>
         </InfoCard>
 
         <InfoCard

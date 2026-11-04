@@ -1,9 +1,15 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { VitePWA } from 'vite-plugin-pwa';
-import { FONTS_URL, MAX_CACHED_TILES, STYLE_URL, TILES_URL } from './scripts/pwa-caching';
+import {
+  BRANDS_URL,
+  FONTS_URL,
+  MAX_CACHED_TILES,
+  STYLE_URL,
+  TILES_URL,
+} from './scripts/pwa-caching';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { version } from './package.json' with { type: 'json' };
@@ -18,6 +24,39 @@ const base = cliBase ?? process.env['GASORA_BASE'] ?? '/';
 const owner = process.env['GITHUB_REPOSITORY_OWNER']?.toLowerCase() ?? 'akaminmen';
 const site = process.env['GASORA_SITE'] ?? `https://${owner}.github.io${base}`;
 const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'acerca'];
+
+/** Logos de marca de `public/brands/` que existen (ver `src/lib/brand-logos.ts`). */
+const BRAND_FILES_ID = 'virtual:brand-files';
+/** En los tests e2e (`--mode e2e`) hay dos logos de prueba, que `scripts/e2e-data.ts` escribe en dist/brands. */
+const E2E_BRAND_FILES = ['ballenoil.svg', 'shell.svg'];
+
+function brandFiles(mode: string): Plugin {
+  const dir = resolve(import.meta.dirname, 'public/brands');
+  const resolved = `\0${BRAND_FILES_ID}`;
+  const list = () => {
+    const files = existsSync(dir)
+      ? readdirSync(dir).filter((name) => /\.(svg|webp|png)$/i.test(name))
+      : [];
+    if (mode === 'e2e') files.push(...E2E_BRAND_FILES);
+    return [...new Set(files)].sort();
+  };
+  return {
+    name: 'gasora-brand-files',
+    resolveId: (id) => (id === BRAND_FILES_ID ? resolved : undefined),
+    load: (id) => (id === resolved ? `export default ${JSON.stringify(list())};` : undefined),
+    configureServer(server) {
+      // En desarrollo, al soltar o borrar un logo se recarga la lista
+      server.watcher.add(dir);
+      const reload = (file: string) => {
+        if (!file.replaceAll('\\', '/').includes('/public/brands/')) return;
+        const module = server.moduleGraph.getModuleById(resolved);
+        if (module) server.moduleGraph.invalidateModule(module);
+        server.ws.send({ type: 'full-reload' });
+      };
+      server.watcher.on('add', reload).on('unlink', reload);
+    },
+  };
+}
 
 /** Sustituye %SITE_URL% en index.html y genera robots.txt y sitemap.xml con la dirección real. */
 function seoFiles(): Plugin {
@@ -61,7 +100,7 @@ function spaFallback(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base,
   define: {
     // Versión visible en «Acerca de» (sirve para comprobar que una actualización ha llegado)
@@ -119,8 +158,9 @@ export default defineConfig({
       },
       workbox: {
         // La aplicación entera (incluido el mapa) se guarda al instalar para que funcione sin red
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest}'],
-        globIgnores: ['**/og-image.png', '**/404.html', 'data/**'],
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,webp,ico,webmanifest}'],
+        // Los logos de marca se guardan al usarse (runtimeCaching), no en la precarga
+        globIgnores: ['**/og-image.png', '**/404.html', 'data/**', 'brands/**'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         // Rutas de la SPA: se sirve index.html; los datos y el resto de ficheros, no
@@ -130,6 +170,20 @@ export default defineConfig({
         skipWaiting: false,
         clientsClaim: true,
         runtimeCaching: [
+          {
+            // Logos de marca (public/brands/): solo los que se llegan a ver, con tope y caducidad
+            urlPattern: BRANDS_URL,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gasora-brand-logos-v1',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 30 * 24 * 3600,
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Teselas vectoriales y de relieve: solo las vistas, con tope (ver MAX_CACHED_TILES)
             urlPattern: TILES_URL,
@@ -173,9 +227,10 @@ export default defineConfig({
     }),
     seoFiles(),
     spaFallback(),
+    brandFiles(mode),
   ],
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
   },
-});
+}));

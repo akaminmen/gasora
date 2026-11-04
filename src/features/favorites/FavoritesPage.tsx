@@ -5,7 +5,7 @@ import { PageColumn, PageHeader } from '../../components/PageHeader';
 import { Button, LinkButton } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
 import { EmptyState, ErrorState, StationCardSkeleton } from '../../components/ui/Feedback';
-import { BrandAvatar, StationCard } from '../../components/ui/Station';
+import { BrandLogo, StationCard } from '../../components/ui/Station';
 import { DEFAULT_LITERS } from '../../lib/pricing';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime } from '../../lib/format';
@@ -38,7 +38,7 @@ function PlainRow({
       data-testid="favorite-row"
       data-station-id={id}
     >
-      <BrandAvatar name={name} brandKey={brandKey} />
+      <BrandLogo name={name} brandKey={brandKey} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold" title={name}>
           {to ? (

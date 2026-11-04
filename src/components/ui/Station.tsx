@@ -1,5 +1,8 @@
 import { Crown, Heart, Minus } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
+import brandFiles from 'virtual:brand-files';
+import { logoFileFor } from '../../lib/brand-logos';
 import { formatKm, formatMoney, formatPriceNumber } from '../../lib/format';
 import { TIER_LABELS, TIER_SYMBOLS, type Tier } from '../../lib/tiers';
 
@@ -15,7 +18,7 @@ export function avatarVariant(brandKey: string): 1 | 2 | 3 {
   return ((hash % 3) + 1) as 1 | 2 | 3;
 }
 
-/** Avatar circular con la inicial de la marca. Sin logos (marcas registradas). */
+/** Avatar circular con la inicial de la marca: respaldo cuando no hay logo (ver BrandLogo). */
 export function BrandAvatar({
   name,
   brandKey,
@@ -33,6 +36,47 @@ export function BrandAvatar({
       aria-hidden="true"
     >
       {initialOf(name)}
+    </span>
+  );
+}
+
+const AVAILABLE_LOGOS: ReadonlySet<string> = new Set(brandFiles);
+
+/**
+ * Icono de la estación: el logo de la marca si el usuario lo ha aportado (`public/brands/`, ADR 015)
+ * y, si no, el avatar con la inicial. Cuadrado del tamaño del avatar, sobre fondo claro también en
+ * el tema oscuro. `alt` vacío: el nombre ya aparece en texto. No se usa en los pines del mapa.
+ */
+export function BrandLogo({
+  name,
+  brandKey,
+  size,
+}: {
+  name: string;
+  brandKey: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  const file = logoFileFor(brandKey, AVAILABLE_LOGOS);
+  if (!file || failed) return <BrandAvatar name={name} brandKey={brandKey} size={size} />;
+  const px = size ?? 44;
+  return (
+    <span
+      className="brand-logo"
+      style={size ? ({ '--avatar-size': `${size}px` } as object) : {}}
+      data-brand={brandKey}
+      aria-hidden="true"
+    >
+      <img
+        src={`${import.meta.env.BASE_URL}brands/${file}`}
+        alt=""
+        width={px}
+        height={px}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        onError={() => setFailed(true)}
+      />
     </span>
   );
 }
@@ -165,7 +209,7 @@ export function StationCard({
         data-selected={selected ? 'true' : 'false'}
       >
         <div className="station-card__avatar">
-          <BrandAvatar name={name} brandKey={brandKey} />
+          <BrandLogo name={name} brandKey={brandKey} />
         </div>
         <div className="station-card__info">
           <h3 className="station-card__name" title={name}>

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataset, type RawResponse } from './build-dataset';
@@ -60,5 +60,18 @@ if (isMain) {
     now: new Date('2026-10-28T16:00:00Z'),
   });
   await writeDataset(out, dataset);
+  // Dos logos de prueba (rectangulares, para comprobar object-fit): el resto de marcas usa el avatar.
+  // Solo existen en el build de los tests e2e (ver `brandFiles` en vite.config.ts).
+  const brandsDir = resolve(out, '..', 'brands');
+  await mkdir(brandsDir, { recursive: true });
+  for (const [file, color] of [
+    ['ballenoil.svg', '#0f766e'],
+    ['shell.svg', '#b45309'],
+  ] as const) {
+    await writeFile(
+      resolve(brandsDir, file),
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><rect width="120" height="60" fill="${color}"/><circle cx="60" cy="30" r="22" fill="#fff"/></svg>`,
+    );
+  }
   console.log(`Datos de prueba: ${dataset.meta.stationCount} estaciones en ${out}`);
 }

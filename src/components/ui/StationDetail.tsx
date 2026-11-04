@@ -2,7 +2,7 @@ import { Clock, MapPin, Navigation, Share2, X } from 'lucide-react';
 import { useCallback, useId, useRef, useState } from 'react';
 import { useDismissable } from '../../hooks/useDismissable';
 import { buttonClass, Button, IconButton } from './Button';
-import { BrandAvatar, FavoriteButton, TierPill } from './Station';
+import { BrandLogo, FavoriteButton, TierPill } from './Station';
 import { formatKm, formatMoney, formatPriceNumber } from '../../lib/format';
 import type { FuelId } from '../../lib/data-schema';
 import { FUEL_LABELS } from '../../lib/fuels';
@@ -130,7 +130,7 @@ export function StationDetail(props: StationDetailProps) {
   return (
     <div className="flex min-h-full min-w-0 flex-col gap-4 p-5" data-testid="station-detail">
       <div className="flex items-center gap-3">
-        <BrandAvatar name={name} brandKey={brandKey} size={52} />
+        <BrandLogo name={name} brandKey={brandKey} size={52} />
         <div className="min-w-0 flex-1">
           <h2 className="font-display-800 truncate text-xl" title={name}>
             {name}

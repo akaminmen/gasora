@@ -63,6 +63,14 @@ if (/og-image|404\.html/.test(sw.split('precacheAndRoute')[1]?.split('])')[0] ??
   problems.push('dist/sw.js guarda ficheros que no hacen falta sin conexión (og-image, 404.html)');
 }
 
+const precache = sw.split('precacheAndRoute')[1]?.split('])')[0] ?? '';
+if (/brands\//.test(precache)) {
+  problems.push('dist/sw.js guarda los logos de marca en la precarga (deben guardarse al usarse)');
+}
+if (!/gasora-brand-logos-v1/.test(sw)) {
+  problems.push('dist/sw.js no tiene la caché de ejecución de los logos de marca');
+}
+
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exitCode = 1;

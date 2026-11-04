@@ -20,7 +20,7 @@ export const EXTREME_CARD: CardSample = {
   caseName: 'rótulo de 86 y dirección de 104, precio 1,999, ahorro de 3 cifras',
   id: 'm3',
   name: LONG_NAME,
-  brandKey: 'otras',
+  brandKey: 'ballenoil',
   address: LONG_ADDRESS,
   distanceKm: 12.3,
   price: 1999,

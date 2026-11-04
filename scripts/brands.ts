@@ -1,5 +1,5 @@
 /** Rótulos conocidos → brandKey. Orden de frecuencia real (Fase 0). Lo demás es «otras». */
-const KNOWN_BRANDS = [
+export const KNOWN_BRANDS = [
   'REPSOL',
   'MOEVE',
   'CEPSA',
