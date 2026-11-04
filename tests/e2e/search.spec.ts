@@ -100,7 +100,7 @@ test.describe('autocompletado por nombre, sin acentos y con teclado', () => {
     await search(page).press('Enter');
     await expect(page.getByTestId('results-title')).toHaveText('Gasolineras en Málaga');
     await expect(page.getByRole('button', { name: 'Ampliar a 10 km' })).toHaveCount(0);
-    expect(await cards(page).count()).toBeGreaterThan(0);
+    await expect(cards(page).first()).toBeVisible();
   });
 
   test('un municipio se puede ampliar a 10 km', async ({ page }) => {
@@ -118,7 +118,8 @@ test.describe('autocompletado por nombre, sin acentos y con teclado', () => {
     await page.goto('/acerca');
     await search(page).fill(BIG_CP.code);
     await search(page).press('Enter');
-    await expect(page).toHaveURL('/');
+    // La URL pasa a llevar la búsqueda (?q=…), pero sigue siendo la pantalla de inicio
+    await expect(page).toHaveURL(/127\.0\.0\.1:4173\/(\?.*)?$/);
     await expect(page.getByTestId('results-title')).toContainText(BIG_CP.code);
   });
 });
@@ -337,6 +338,17 @@ test.describe('combustible, marcas y «Ver más»', () => {
     await panel.getByLabel(/Repsol/).check();
     const repsol = await page.locator('.station-card__link').allTextContents();
     expect(repsol.every((n) => /repsol/i.test(n))).toBe(true);
+  });
+
+  test('los resultados se anuncian a los lectores de pantalla y se actualizan al cambiar de combustible', async ({
+    page,
+  }) => {
+    const announcement = page.getByTestId('results-announcement');
+    await expect(announcement).toContainText('Gasolineras en Málaga.');
+    await expect(announcement).toContainText('con Gasolina 95');
+    await page.getByRole('button', { name: 'Diésel', exact: true }).click();
+    await expect(announcement).toContainText('con Diésel');
+    await expect(announcement).toHaveAttribute('role', 'status');
   });
 
   test('«Borrar búsqueda» vuelve al inicio', async ({ page }) => {

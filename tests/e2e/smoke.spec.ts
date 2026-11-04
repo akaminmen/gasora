@@ -18,7 +18,7 @@ test('el inicio muestra las estaciones y la fecha de consulta de los datos reale
   });
 
   await page.goto('/');
-  await expect(page).toHaveTitle('Gasora');
+  await expect(page).toHaveTitle(/^Gasora · La gasolina más barata/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'La gasolina más barata, más cerca',
   );
@@ -55,8 +55,8 @@ test('las rutas del plan responden y el 404 es amable', async ({ page }) => {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
   }
-  await page.goto('/e/4375');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('4375');
+  await page.goto('/e/99999999');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('99999999');
   await page.goto('/ruta-que-no-existe');
   await expect(page.getByRole('heading', { name: 'Esta página no existe' })).toBeVisible();
   await page.getByRole('link', { name: 'Volver al inicio' }).click();
