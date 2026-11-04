@@ -1,6 +1,7 @@
 import { ChevronDown, MapPin, Store } from 'lucide-react';
-import { useId, useState } from 'react';
-import { FUELS, type FuelId } from '../../lib/data-schema';
+import { useCallback, useId, useRef, useState } from 'react';
+import { useDismissable } from '../../hooks/useDismissable';
+import { FUELS, type FuelId } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
 import type { SortKey } from '../../lib/resultset';
 
@@ -149,14 +150,20 @@ export function BrandMultiSelect({
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  // Esc cierra y devuelve el foco al botón; el foco no sale del desplegable mientras está abierto
+  useDismissable({ open, onClose: close, containerRef: panelRef, triggerRef });
   const toggle = (key: string) =>
     onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
   return (
     <div className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[0.8125rem] font-semibold whitespace-nowrap text-ink"
       >
@@ -166,10 +173,11 @@ export function BrandMultiSelect({
       </button>
       {open && (
         <div
+          ref={panelRef}
           id={panelId}
           role="group"
           aria-label="Marcas"
-          className="absolute top-[calc(100%+8px)] left-0 z-20 w-64 rounded-2xl border border-line bg-surface p-2 shadow-raised"
+          className="absolute top-[calc(100%+8px)] left-0 z-20 max-h-[60dvh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-raised"
         >
           {options.map((option) => (
             <label
@@ -186,6 +194,16 @@ export function BrandMultiSelect({
               <span className="text-[0.8125rem] text-muted tabular-nums">{option.count}</span>
             </label>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              triggerRef.current?.focus();
+            }}
+            className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-xl border-0 bg-brand-50 px-3 text-[0.875rem] font-semibold text-link"
+          >
+            Hecho
+          </button>
         </div>
       )}
     </div>

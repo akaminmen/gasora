@@ -143,6 +143,13 @@ export function ResultsView({ place }: { place: Place }) {
       : `Sin gasolineras con ${fuelLabel}`
     : 'Buscando…';
 
+  // Aviso para lectores de pantalla cuando llegan los resultados o cambian (combustible, radio…)
+  const announcement = (
+    <p className="sr-only" role="status" data-testid="results-announcement">
+      {result ? `${title(place)}. ${summary}` : ''}
+    </p>
+  );
+
   const controls = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {usesRadius(place) && (
@@ -307,6 +314,7 @@ export function ResultsView({ place }: { place: Place }) {
         <h1 id="results-title" data-testid="results-title" className="sr-only">
           {title(place)}
         </h1>
+        {announcement}
         <div className="absolute inset-0">
           {map({ top: floatingHeight, right: 0, bottom: sheetHeight, left: 0 })}
         </div>
@@ -378,6 +386,7 @@ export function ResultsView({ place }: { place: Place }) {
           <FuelChips value={fuel} onChange={setFuel} />
         </div>
       </div>
+      {announcement}
       <div className="flex min-h-0 flex-1">
         <aside
           aria-label="Lista de gasolineras"

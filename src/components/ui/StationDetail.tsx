@@ -1,4 +1,6 @@
 import { Clock, MapPin, Navigation, Share2, X } from 'lucide-react';
+import { useCallback, useId, useRef, useState } from 'react';
+import { useDismissable } from '../../hooks/useDismissable';
 import { buttonClass, Button, IconButton } from './Button';
 import { BrandAvatar, FavoriteButton, TierPill } from './Station';
 import { formatKm, formatMoney, formatPriceNumber } from '../../lib/format';
@@ -55,29 +57,50 @@ export function directionLinks(lat: number, lng: number) {
 }
 
 export function DirectionsMenu({ lat, lng }: { lat: number; lng: number }) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const menuRef = useRef<HTMLUListElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  // Esc cierra y devuelve el foco al botón; el foco da la vuelta dentro del menú
+  useDismissable({ open, onClose: close, containerRef: menuRef, triggerRef });
   return (
-    <details className="group relative flex-1">
-      <summary
-        className={`${buttonClass('primary', 'md', 'w-full list-none cursor-pointer')} [&::-webkit-details-marker]:hidden`}
+    <div className="relative flex-1">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls={open ? menuId : undefined}
+        onClick={() => setOpen((v) => !v)}
+        className={buttonClass('primary', 'md', 'w-full cursor-pointer')}
       >
         <Navigation width={18} height={18} aria-hidden />
         Cómo llegar
-      </summary>
-      <ul className="absolute right-0 bottom-[calc(100%+8px)] left-0 z-20 m-0 list-none rounded-2xl border border-line bg-surface p-2 shadow-raised">
-        {directionLinks(lat, lng).map((link) => (
-          <li key={link.label}>
-            <a
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-11 items-center rounded-xl px-3 text-[0.9375rem] font-medium text-ink no-underline hover:bg-brand-50"
-            >
-              {link.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </details>
+      </button>
+      {open && (
+        <ul
+          ref={menuRef}
+          id={menuId}
+          aria-label="Abrir en"
+          className="absolute right-0 bottom-[calc(100%+8px)] left-0 z-20 m-0 list-none rounded-2xl border border-line bg-surface p-2 shadow-raised"
+        >
+          {directionLinks(lat, lng).map((link) => (
+            <li key={link.label}>
+              <a
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={close}
+                className="flex min-h-11 items-center rounded-xl px-3 text-[0.9375rem] font-medium text-ink no-underline hover:bg-brand-50"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
