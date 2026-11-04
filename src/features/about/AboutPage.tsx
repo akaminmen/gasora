@@ -4,6 +4,7 @@ import {
   Fuel,
   Info,
   Map as MapIcon,
+  Scale,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react';
@@ -142,6 +143,22 @@ export function AboutPage() {
           <p>
             El precio final en el surtidor puede ser distinto del que ves aquí. Confírmalo antes de
             repostar.
+          </p>
+        </InfoCard>
+
+        <InfoCard icon={<Scale width={20} height={20} aria-hidden />} title="Licencias de terceros">
+          <p>
+            Gasora usa software libre de terceros. Los avisos y los textos de sus licencias están en{' '}
+            <a
+              href={`${import.meta.env.BASE_URL}licencias-de-terceros.txt`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+              data-testid="about-licenses"
+            >
+              licencias-de-terceros.txt
+            </a>
+            .
           </p>
         </InfoCard>
 
