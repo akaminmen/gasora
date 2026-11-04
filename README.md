@@ -48,6 +48,8 @@ npm run ingest:fixtures
 | `npm run build` / `npm run preview`                     | Compila y sirve el build de producción                                                                                                                                                                                                                                                        |
 | `npm run build:e2e`                                     | Build para los tests: incluye la galería `/ui-kit` y unos datos de prueba deterministas en `dist/data` (`scripts/e2e-data.ts`)                                                                                                                                                                |
 | `npm run icons`                                         | Regenera los iconos de la app, el favicon y la imagen para compartir a partir de `public/favicon.svg` (solo si cambia el logo)                                                                                                                                                                |
+| `npm run hero-map`                                      | Regenera el fondo de mapa (claro y oscuro) de la ilustración del inicio, con OpenFreeMap (solo si cambia el centro o el zoom)                                                                                                                                                                 |
+| `npm run brands:check`                                  | Valida los logos de `public/brands/` (existencia, SVG ≤ 8 KB sin scripts ni referencias externas) y lista las marcas sin logo                                                                                                                                                                 |
 | `npm run check:build`                                   | Falla si `dist/` lleva la galería o le falta `404.html`                                                                                                                                                                                                                                       |
 | `npm run ingest`                                        | Descarga, normaliza, valida y genera `public/data/`                                                                                                                                                                                                                                           |
 | `npm run ingest:fixtures`                               | Igual, con la muestra de `fixtures/` (datos de demostración)                                                                                                                                                                                                                                  |
@@ -80,6 +82,12 @@ Gasora es un proyecto independiente, no afiliado ni respaldado por el Ministerio
 
 Mapa: © OpenMapTiles, Data from OpenStreetMap, servido por OpenFreeMap.
 
+## Logos de marcas
+
+Las tarjetas, la ficha y los favoritos muestran el logo de la marca de la estación cuando el archivo existe en `public/brands/` (uno por marca: `<nombre>.svg`, o `.webp` / `.png` si no hay SVG; los nombres están en `src/lib/brand-logos.ts`). Si falta, se muestra un avatar con la inicial. `npm run brands:check` valida la carpeta (tamaño, SVG sin scripts ni referencias externas) y lista las marcas sin logo. Decisión en el [ADR 015](docs/decisions/015-logos-de-marcas.md).
+
+Los logos son marcas de sus respectivos propietarios y se muestran solo para identificar la estación; Gasora no está afiliada a ellas.
+
 ## Licencia
 
-[MIT](LICENSE) © 2026 Balta Caro. La licencia cubre el código de este repositorio, no los datos del Ministerio ni las teselas del mapa.
+[MIT](LICENSE) © 2026 Balta Caro. La licencia cubre el código de este repositorio, no los datos del Ministerio, las teselas del mapa ni los logos de `public/brands/`, que son marcas de sus respectivos propietarios y **no están bajo la licencia MIT**.
