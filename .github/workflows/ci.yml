@@ -32,6 +32,8 @@ jobs:
       # El build de producción no debe llevar la galería /ui-kit (los e2e usan un build aparte).
       - run: npm run build
       - run: npm run check:build
+      # Logos de public/brands/: nombres, SVG de hasta 8 KB sin scripts ni referencias externas
+      - run: npm run brands:check
       # Chromium para todo; Firefox y WebKit para layout, accesibilidad y teclado
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:e2e
