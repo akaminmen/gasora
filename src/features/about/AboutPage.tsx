@@ -1,11 +1,59 @@
-import { Clock, Fuel, Info, Map as MapIcon, ShieldCheck, TriangleAlert } from 'lucide-react';
+import {
+  Clock,
+  Download,
+  Fuel,
+  Info,
+  Map as MapIcon,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
 import { LogoMark, Wordmark } from '../../components/ui/Logo';
-import { FUELS } from '../../lib/data-schema';
+import { FUELS } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime, formatPrice } from '../../lib/format';
 import { useGasoraData } from '../../lib/useGasoraData';
+import { usePwaStore } from '../../pwa/store';
+import { Button } from '../../components/ui/Button';
+
+/** Instalar la app y versión (sirve para comprobar que una actualización ha llegado). */
+function InstallCard() {
+  const installEvent = usePwaStore((s) => s.installEvent);
+  const installed = usePwaStore((s) => s.installed);
+  const offlineReady = usePwaStore((s) => s.offlineReady);
+  const standalone =
+    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+  return (
+    <InfoCard icon={<Download width={20} height={20} aria-hidden />} title="Instalar la aplicación">
+      <p>
+        Gasora funciona como aplicación: se instala en el móvil o el ordenador y abre los últimos
+        datos guardados aunque no haya conexión.
+      </p>
+      {installEvent && !installed && !standalone && (
+        <Button
+          className="mt-3"
+          icon={<Download width={18} height={18} aria-hidden />}
+          onClick={() => {
+            void installEvent.prompt();
+          }}
+        >
+          Instalar Gasora
+        </Button>
+      )}
+      {(installed || standalone) && <p className="mt-2 font-semibold">Ya la tienes instalada.</p>}
+      {!installEvent && !installed && !standalone && (
+        <p className="mt-2 text-muted">
+          En iPhone y iPad: Compartir → «Añadir a pantalla de inicio». En otros navegadores, busca
+          «Instalar» en su menú.
+        </p>
+      )}
+      <p className="mt-2 text-xs text-muted" data-testid="app-version">
+        Versión {__APP_VERSION__} ({__APP_BUILD__}){offlineReady ? ' · lista sin conexión' : ''}
+      </p>
+    </InfoCard>
+  );
+}
 
 function InfoCard({
   icon,
@@ -31,7 +79,7 @@ function InfoCard({
 
 /** Acerca de: fuente, fecha, aviso legal, privacidad y exclusiones (F10). */
 export function AboutPage() {
-  const { state } = useGasoraData();
+  const { state } = useGasoraData({ defer: true });
   const data = state.status === 'ready' ? state.data : null;
 
   return (
@@ -64,11 +112,13 @@ export function AboutPage() {
           <p data-testid="about-date">
             Datos del Ministerio consultados el{' '}
             <b className="text-ink tabular-nums">
-              {data ? formatDateTime(data.meta.sourceDate) : '…'}
+              {data ? formatDateTime(data.meta.sourceDate) : '··/··/····, ··:··'}
             </b>
             .
           </p>
         </InfoCard>
+
+        <InstallCard />
 
         <InfoCard icon={<MapIcon width={20} height={20} aria-hidden />} title="Mapa">
           <p data-testid="about-map">
@@ -113,45 +163,43 @@ export function AboutPage() {
           </p>
         </InfoCard>
 
-        {data && (
-          <section
-            className="min-w-0 rounded-card border border-line bg-surface p-4 shadow-soft"
-            aria-labelledby="cobertura"
-          >
-            <h2 id="cobertura" className="font-display-800 text-[0.97rem]">
-              Estaciones con precio
-            </h2>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-left text-sm" data-testid="fuel-table">
-                <thead>
-                  <tr className="text-muted">
-                    <th className="py-1 font-semibold">Combustible</th>
-                    <th className="py-1 text-right font-semibold">Estaciones</th>
-                    <th className="py-1 text-right font-semibold">Desde</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {FUELS.map((fuel, index) => {
-                    const values = Object.values(data.prices.p)
-                      .map((row) => row[index])
-                      .filter((v): v is number => typeof v === 'number');
-                    return (
-                      <tr key={fuel} className="border-t border-line">
-                        <td className="py-1.5">{FUEL_LABELS[fuel]}</td>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {values.length.toLocaleString('es-ES')}
-                        </td>
-                        <td className="py-1.5 text-right whitespace-nowrap tabular-nums">
-                          {values.length ? formatPrice(Math.min(...values)) : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        <section
+          className="min-w-0 rounded-card border border-line bg-surface p-4 shadow-soft"
+          aria-labelledby="cobertura"
+        >
+          <h2 id="cobertura" className="font-display-800 text-[0.97rem]">
+            Estaciones con precio
+          </h2>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-left text-sm" data-testid="fuel-table">
+              <thead>
+                <tr className="text-muted">
+                  <th className="py-1 font-semibold">Combustible</th>
+                  <th className="py-1 text-right font-semibold">Estaciones</th>
+                  <th className="py-1 text-right font-semibold">Desde</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FUELS.map((fuel, index) => {
+                  const values = Object.values(data?.prices.p ?? {})
+                    .map((row) => row[index])
+                    .filter((v): v is number => typeof v === 'number');
+                  return (
+                    <tr key={fuel} className="border-t border-line">
+                      <td className="py-1.5">{FUEL_LABELS[fuel]}</td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {data ? values.length.toLocaleString('es-ES') : '…'}
+                      </td>
+                      <td className="py-1.5 text-right whitespace-nowrap tabular-nums">
+                        {data ? (values.length ? formatPrice(Math.min(...values)) : '—') : '…'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </PageColumn>
   );

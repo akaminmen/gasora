@@ -1,5 +1,7 @@
 import { Calculator, Heart, House, Info } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { PwaBanners } from '../components/PwaBanners';
 import { Logo } from '../components/ui/Logo';
 import { SearchBox } from '../features/search/SearchBox';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
@@ -21,20 +23,24 @@ const MOBILE_LINKS = [
 ];
 
 function Footer() {
-  const { state } = useGasoraData();
+  const { state } = useGasoraData({ defer: true });
   const date = state.status === 'ready' ? formatDateTime(state.data.meta.sourceDate) : null;
   return (
     <footer className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-28 text-xs text-muted lg:px-6 lg:pb-6">
       <p>
         Fuente: Ministerio para la Transición Ecológica y el Reto Demográfico — Precio de
-        carburantes en las gasolineras españolas (datos.gob.es).
-        {date ? ` Datos consultados el ${date}.` : ''}
+        carburantes en las gasolineras españolas (datos.gob.es). Datos consultados el{' '}
+        {/* Reserva el ancho de la fecha: al llegar los datos el pie no cambia de alto */}
+        <span className="inline-block min-w-[9.5em] tabular-nums">
+          {date ?? '··/··/····, ··:··'}
+        </span>
+        .
       </p>
       <p className="mt-1">
         Gasora es un proyecto independiente, no afiliado ni respaldado por el Ministerio. Los
         precios pueden diferir de los del surtidor.{' '}
         <Link to="/acerca" className="inline-flex min-h-11 items-center font-semibold">
-          Más información
+          Más sobre los datos y el aviso legal
         </Link>
       </p>
     </footer>
@@ -44,6 +50,17 @@ function Footer() {
 export function AppShell() {
   const { pathname } = useLocation();
   const isHome = pathname === '/';
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+
+  // Al cambiar de pantalla el foco pasa al contenido (lectores de pantalla y teclado)
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -94,7 +111,8 @@ export function AppShell() {
         </div>
       </header>
 
-      <main id="contenido" className="flex-1">
+      <PwaBanners />
+      <main id="contenido" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
       <Footer />

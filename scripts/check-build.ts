@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 /**
  * Comprueba el build de producción (dist/): la galería /ui-kit es solo para desarrollo y tests, así
  * que ni su chunk ni sus textos deben llegar al sitio publicado; y debe existir 404.html para que
- * GitHub Pages sirva los enlaces directos (/e/:id).
+ * GitHub Pages sirva los enlaces directos (/e/:id). También debe ser una PWA completa: manifiesto
+ * enlazado, iconos, service worker que guarda la aplicación (y el mapa) pero no los datos, y los
+ * ficheros para buscadores.
  */
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const assets = join(dist, 'assets');
@@ -29,9 +31,43 @@ const [index, notFound] = await Promise.all([
 if (notFound === null) problems.push('Falta dist/404.html (fallback de GitHub Pages)');
 else if (notFound !== index) problems.push('dist/404.html no es copia de dist/index.html');
 
+// PWA y SEO
+const exists = async (file: string) =>
+  readFile(join(dist, file)).then(
+    () => true,
+    () => false,
+  );
+for (const file of [
+  'sw.js',
+  'manifest.webmanifest',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-512.png',
+  'apple-touch-icon.png',
+  'favicon.ico',
+  'og-image.png',
+  'robots.txt',
+  'sitemap.xml',
+]) {
+  if (!(await exists(file))) problems.push(`Falta dist/${file}`);
+}
+if (!/rel="manifest"/.test(index)) problems.push('index.html no enlaza el manifiesto');
+if (index.includes('%SITE_URL%')) problems.push('index.html conserva el marcador %SITE_URL%');
+const sw = await readFile(join(dist, 'sw.js'), 'utf8').catch(() => '');
+if (/\/data\/[^"']*\.json/.test(sw))
+  problems.push('dist/sw.js guarda los datos JSON en la caché de la aplicación');
+if (!/MapCanvas-[\w-]+\.js/.test(sw)) problems.push('dist/sw.js no guarda el trozo del mapa');
+if (!/maplibre-gl-worker-[\w-]+\.js/.test(sw))
+  problems.push('dist/sw.js no guarda el worker del mapa');
+if (/og-image|404\.html/.test(sw.split('precacheAndRoute')[1]?.split('])')[0] ?? '')) {
+  problems.push('dist/sw.js guarda ficheros que no hacen falta sin conexión (og-image, 404.html)');
+}
+
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exitCode = 1;
 } else {
-  console.log('Build de producción correcto: sin /ui-kit y con 404.html.');
+  console.log(
+    'Build de producción correcto: sin /ui-kit, con 404.html, PWA y ficheros para buscadores.',
+  );
 }

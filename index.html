@@ -3,9 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Gasora: la gasolina más barata, más cerca." />
+    <meta
+      name="description"
+      content="Gasora: encuentra la gasolina más barata cerca de ti con los datos abiertos de precios de carburantes de España. Sin registro ni cookies."
+    />
     <meta name="theme-color" content="#4F46E5" />
+    <link rel="canonical" href="%SITE_URL%" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gasora" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content="Gasora" />
+    <meta property="og:title" content="Gasora · La gasolina más barata, más cerca" />
+    <meta
+      property="og:description"
+      content="Precios de carburantes de toda España en un mapa, con tu ubicación o por código postal. Datos abiertos del Ministerio."
+    />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:image" content="%SITE_URL%og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Gasora, la gasolina más barata, más cerca" />
+    <meta name="twitter:card" content="summary_large_image" />
     <script>
       // Aplica el tema elegido antes del primer pintado para evitar el parpadeo.
       try {
@@ -13,10 +35,16 @@
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
-    <title>Gasora</title>
+    <title>Gasora · La gasolina más barata, más cerca</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="padding: 1rem; font-family: sans-serif">
+        Gasora necesita JavaScript para mostrar los precios y el mapa. Actívalo en tu navegador para
+        usarla.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
