@@ -24,6 +24,8 @@
     "icons": "tsx scripts/make-icons.ts",
     "hero-map": "tsx scripts/make-hero-map.ts",
     "brands:check": "tsx scripts/check-brands.ts",
+    "licenses": "tsx scripts/licenses.ts",
+    "screenshots": "tsx scripts/make-screenshots.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:live": "playwright test -c playwright.live.config.ts",
