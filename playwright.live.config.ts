@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import base from './playwright.config';
 
 /**
@@ -8,8 +8,15 @@ import base from './playwright.config';
  */
 export default defineConfig({
   ...base,
-  testIgnore: undefined,
-  testMatch: /.*-live\.spec\.ts/,
+  projects: [
+    {
+      name: 'live',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /.*-live\.spec\.ts/,
+    },
+  ],
+  // Solo hace falta el servidor normal
+  webServer: base.webServer instanceof Array ? base.webServer[0] : base.webServer,
   retries: 2,
   workers: 1,
 });
