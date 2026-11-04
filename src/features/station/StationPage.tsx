@@ -9,6 +9,7 @@ import { FUELS } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime } from '../../lib/format';
 import { absoluteUrl } from '../../lib/share';
+import { useFooterHidden } from '../../lib/useFooterHidden';
 import { useGasoraData } from '../../lib/useGasoraData';
 import { sellableFuel, zoneItem } from '../../lib/zone';
 import { useDataStore } from '../../stores/data';
@@ -21,6 +22,7 @@ import { shareStation } from '../results/share';
 export function StationPage() {
   const { id = '' } = useParams();
   const { state, retry } = useGasoraData();
+  useFooterHidden(state.status === 'loading');
   const stationsById = useDataStore((s) => s.stationsById);
   const index = useDataStore((s) => s.index);
   const loadIndex = useDataStore((s) => s.loadIndex);

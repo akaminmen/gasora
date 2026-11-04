@@ -26,7 +26,7 @@ function Footer() {
   const { state } = useGasoraData({ defer: true });
   const date = state.status === 'ready' ? formatDateTime(state.data.meta.sourceDate) : null;
   return (
-    <footer className="mx-auto w-full max-w-[1100px] px-4 pt-6 pb-28 text-xs text-muted lg:px-6 lg:pb-6">
+    <footer className="mx-auto w-full max-w-[1100px] flex-none px-4 pt-6 pb-28 text-xs text-muted lg:px-6 lg:pb-6">
       <p>
         Fuente: Ministerio para la Transición Ecológica y el Reto Demográfico — Precio de
         carburantes en las gasolineras españolas (datos.gob.es). Datos consultados el{' '}

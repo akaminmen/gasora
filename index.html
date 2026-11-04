@@ -35,6 +35,23 @@
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
+    <!-- Fichero de estaciones con hash: lo escribe el build (vite.config.ts). Permite pedirlo a la vez que meta.json -->
+    <meta name="gasora-stations" content="%STATIONS_FILE%" />
+    <script>
+      // Pantallas que necesitan los datos para mostrarse (resultados y ficha): se empieza a bajar el
+      // fichero de estaciones ya en el HTML, sin esperar a que cargue el JS ni a meta.json.
+      (function () {
+        var m = document.querySelector('meta[name="gasora-stations"]');
+        if (!m || !m.content) return;
+        if (!/[?&]q=/.test(location.search) && !/\/e\/\d/.test(location.pathname)) return;
+        var l = document.createElement('link');
+        l.rel = 'preload';
+        l.as = 'fetch';
+        l.crossOrigin = 'anonymous';
+        l.href = '%BASE_URL%data/' + m.content;
+        document.head.appendChild(l);
+      })();
+    </script>
     <title>Gasora · La gasolina más barata, más cerca</title>
   </head>
   <body>

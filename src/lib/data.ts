@@ -68,14 +68,29 @@ async function getJson(
   }
 }
 
-/** Carga meta, estaciones y precios. Si no hay red, usa la última copia guardada (con aviso). */
-export async function loadData(): Promise<GasoraData> {
-  const metaResult = await getJson('meta.json', 'no-cache', true);
+/** Nombre con hash del fichero de estaciones que el build escribe en `index.html` (o `undefined`). */
+export function readStationsHint(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const content = document
+    .querySelector<HTMLMetaElement>('meta[name="gasora-stations"]')
+    ?.content.trim();
+  return content && /^stations\.[0-9a-f]+\.json$/.test(content) ? content : undefined;
+}
+
+/**
+ * Carga meta, estaciones y precios. Si no hay red, usa la última copia guardada (con aviso).
+ * Las tres peticiones salen a la vez: el nombre del fichero de estaciones se conoce por el `index.html`
+ * (`hint`) sin esperar a `meta.json`. Si el nombre ya no es el vigente (un `index.html` guardado de
+ * antes de un cambio de estaciones) o falla, se descarga el de `meta.json` como siempre.
+ */
+export async function loadData(hint: string | undefined = readStationsHint()): Promise<GasoraData> {
+  const metaRequest = getJson('meta.json', 'no-cache', true);
+  const pricesRequest = getJson('prices.json', 'no-cache', true);
+  const hintedRequest = hint ? getJson(hint, 'default', true).catch(() => null) : null;
+  const [metaResult, pricesResult] = await Promise.all([metaRequest, pricesRequest]);
   const meta = metaSchema.parse(metaResult.json);
-  const [stationsResult, pricesResult] = await Promise.all([
-    getJson(meta.stationsFile, 'default', true),
-    getJson('prices.json', 'no-cache', true),
-  ]);
+  const hinted = hint === meta.stationsFile ? await hintedRequest : null;
+  const stationsResult = hinted ?? (await getJson(meta.stationsFile, 'default', true));
   return {
     meta,
     stations: parseStationsLight(stationsResult.json),

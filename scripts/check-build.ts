@@ -71,6 +71,16 @@ if (!/gasora-brand-logos-v1/.test(sw)) {
   problems.push('dist/sw.js no tiene la caché de ejecución de los logos de marca');
 }
 
+const licenses = await readFile(join(dist, 'licencias-de-terceros.txt'), 'utf8').catch(() => '');
+if (!/maplibre-gl/.test(licenses) || licenses.length < 10_000) {
+  problems.push('Falta dist/licencias-de-terceros.txt o está incompleto (npm run licenses)');
+}
+const homeHtml = await readFile(join(dist, 'index.html'), 'utf8');
+const hint = /<meta name="gasora-stations" content="([^"]*)"/.exec(homeHtml)?.[1] ?? '';
+if (!/^stations\.[0-9a-f]+\.json$/.test(hint) || !(await exists(`data/${hint}`))) {
+  problems.push('dist/index.html no lleva el nombre del fichero de estaciones (gasora-stations)');
+}
+
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exitCode = 1;

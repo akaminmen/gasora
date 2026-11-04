@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { HomePage } from '../features/home/HomePage';
 import { NotFoundPage } from '../features/home/NotFoundPage';
+import { useFooterHidden } from '../lib/useFooterHidden';
 import { AppShell } from './AppShell';
 
 // Cada pantalla secundaria va en su propio trozo: el inicio carga solo lo suyo.
@@ -20,12 +21,7 @@ const StationPage = lazy(() =>
 
 function Loading() {
   // Mientras llega el trozo de la pantalla el pie se oculta: así no «salta» al aparecer el contenido
-  useEffect(() => {
-    document.body.dataset['routeLoading'] = 'true';
-    return () => {
-      delete document.body.dataset['routeLoading'];
-    };
-  }, []);
+  useFooterHidden(true);
   return (
     <div className="min-h-[40dvh]">
       <p role="status" className="p-6 text-sm text-muted">

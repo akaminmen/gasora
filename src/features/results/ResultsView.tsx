@@ -27,10 +27,12 @@ import {
 } from '../../lib/place';
 import { buildResultSet, type ResultItem, type ResultSet } from '../../lib/resultset';
 import { useGasoraData } from '../../lib/useGasoraData';
+import { useFooterHidden } from '../../lib/useFooterHidden';
+import { useWhenIdle } from '../../lib/useWhenIdle';
 import { useDataStore } from '../../stores/data';
 import { MAX_LIST, useSearchStore } from '../../stores/search';
 import { useUiStore } from '../../stores/ui';
-import { MapPanel } from '../map/MapPanel';
+import { MapPanel, MapPlaceholder } from '../map/MapPanel';
 import { SearchBox } from '../search/SearchBox';
 import { useFavoritesStore } from '../../stores/favorites';
 import { DetailPanel } from './DetailPanel';
@@ -269,18 +271,25 @@ export function ResultsView({ place }: { place: Place }) {
   const offline = data?.fromCache ? (
     <OfflineBanner date={formatDateTime(data.meta.sourceDate)} onRetry={retry} />
   ) : null;
-  const map = (inset: { top: number; right: number; bottom: number; left: number }) => (
-    <MapPanel
-      items={result?.visible ?? []}
-      selectedId={selectedId}
-      onSelect={selectFromMap}
-      user={user}
-      origin={{ lat: place.lat, lng: place.lng }}
-      fitKey={fitKey}
-      inset={inset}
-      showLegend={mode !== 'mobile'}
-    />
-  );
+  // El código del mapa (≈ 1,1 MB) no se pide hasta que hay resultados y el navegador está libre
+  const mapReady = useWhenIdle(result !== null);
+  // Hasta que llegan los datos el pie no se ve: así no se desplaza al pintarse la lista
+  useFooterHidden(state.status === 'loading');
+  const map = (inset: { top: number; right: number; bottom: number; left: number }) =>
+    !mapReady ? (
+      <MapPlaceholder />
+    ) : (
+      <MapPanel
+        items={result?.visible ?? []}
+        selectedId={selectedId}
+        onSelect={selectFromMap}
+        user={user}
+        origin={{ lat: place.lat, lng: place.lng }}
+        fitKey={fitKey}
+        inset={inset}
+        showLegend={mode !== 'mobile'}
+      />
+    );
 
   // ---------- Móvil: mapa a pantalla casi completa + hoja inferior de tres alturas ----------
   if (mode === 'mobile') {

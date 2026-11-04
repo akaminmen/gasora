@@ -36,19 +36,22 @@ class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }
   }
 }
 
+/** Hueco del mapa mientras no hay resultados que mostrar o llega su código. */
+export function MapPlaceholder() {
+  return (
+    <div className="map-host" data-testid="map-loading" aria-busy="true">
+      <Skeleton className="h-full w-full rounded-none" />
+    </div>
+  );
+}
+
 export function MapPanel(props: Omit<MapCanvasProps, 'theme' | 'onFailure'>) {
   const theme = useUiStore((s) => s.theme);
   const [failed, setFailed] = useState(false);
   if (failed) return <MapUnavailable />;
   return (
     <MapBoundary>
-      <Suspense
-        fallback={
-          <div className="map-host" data-testid="map-loading" aria-busy="true">
-            <Skeleton className="h-full w-full rounded-none" />
-          </div>
-        }
-      >
+      <Suspense fallback={<MapPlaceholder />}>
         <MapCanvas {...props} theme={theme} onFailure={() => setFailed(true)} />
       </Suspense>
     </MapBoundary>
