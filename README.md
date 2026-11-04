@@ -27,7 +27,7 @@ Gasora es una web app (PWA) gratuita y sin registro para conductores de España.
 | :---------------------------------------------------------------: | :-----------------------------------------------------------: |
 | ![Calculadora](docs/screenshots/calculadora-escritorio-light.png) | ![Favoritos](docs/screenshots/favoritos-escritorio-light.png) |
 
-Las capturas se generan con `npm run screenshots` (Playwright sobre la web compilada con los datos reales).
+Capturas tomadas el 04/11/2026 con la web compilada y los datos reales del Ministerio consultados el 03/11/2026 a las 13:38 (hora de España); los precios que se ven son los de ese momento. Se regeneran con `npm run screenshots` (Playwright).
 
 ## Arquitectura
 
@@ -94,16 +94,17 @@ Resumen de los registros de decisiones (ADR) de [`docs/decisions/`](docs/decisio
 
 Cómo se verifica: en lugar de «mirar» la interfaz, los tests de Playwright miden cajas (sin solapes ni desbordes, zonas táctiles de 44 × 44 px) con datos extremos, y axe comprueba la accesibilidad, en claro y oscuro, de 320 a 1440 px.
 
-| Métrica                                                        | Valor                                                                                                                                 |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Tests unitarios (Vitest)                                       | 141                                                                                                                                   |
-| Tests de navegador (Playwright)                                | 808 (9 omitidos en WebKit): Chromium (todo), Firefox y WebKit (layout, accesibilidad y teclado) y la PWA bajo la subruta `/gasora/`   |
-| Lighthouse móvil (Inicio, Favoritos, Calculadora, «Acerca de») | rendimiento 92–99; accesibilidad, buenas prácticas y SEO: 100                                                                         |
-| Lighthouse móvil (resultados y ficha de estación)              | rendimiento 40–70: dependen de ≈ 1,9 MB de datos y del mapa ([ADR 014](docs/decisions/014-pwa-sin-conexion-teclado-y-rendimiento.md)) |
-| JS inicial                                                     | ≈ 271 KB (≈ 85 KB gzip); el mapa (≈ 1,1 MB, ≈ 294 KB gzip) se carga aparte                                                            |
-| Datos (11.357 estaciones)                                      | estaciones 1,9 MB (≈ 411 KB gzip), precios 446 KB (≈ 80 KB gzip), índice de búsqueda 661 KB (≈ 156 KB gzip, solo al buscar)           |
-| Cookies y servidores ajenos                                    | ninguno salvo `tiles.openfreemap.org` (lo comprueba un test)                                                                          |
-| `npm audit` (solo producción)                                  | 0 vulnerabilidades                                                                                                                    |
+| Métrica                                                        | Valor                                                                                                                                                                                                      |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests unitarios (Vitest)                                       | 155                                                                                                                                                                                                        |
+| Tests de navegador (Playwright)                                | 808 (9 omitidos en WebKit): Chromium (todo), Firefox y WebKit (layout, accesibilidad y teclado) y la PWA bajo la subruta `/gasora/`                                                                        |
+| Lighthouse móvil (Inicio, Favoritos, Calculadora, «Acerca de») | rendimiento 95–100; accesibilidad, buenas prácticas y SEO: 100                                                                                                                                             |
+| Lighthouse móvil (ficha de estación)                           | rendimiento 87–89; accesibilidad, buenas prácticas y SEO: 100                                                                                                                                              |
+| JS inicial                                                     | ≈ 271 KB (≈ 85 KB gzip); el mapa (≈ 1,1 MB, ≈ 294 KB gzip) se carga aparte                                                                                                                                 |
+| Lighthouse móvil (resultados con mapa)                         | rendimiento 67–71 (el bloqueo del hilo principal lo domina la evaluación del mapa; [ADR 014](docs/decisions/014-pwa-sin-conexion-teclado-y-rendimiento.md)); accesibilidad 98; buenas prácticas y SEO: 100 |
+| Datos (11.357 estaciones)                                      | estaciones 1,9 MB (≈ 411 KB gzip), precios 446 KB (≈ 80 KB gzip), índice de búsqueda 661 KB (≈ 156 KB gzip, solo al buscar)                                                                                |
+| Cookies y servidores ajenos                                    | ninguno salvo `tiles.openfreemap.org` (lo comprueba un test)                                                                                                                                               |
+| `npm audit` (solo producción)                                  | 0 vulnerabilidades                                                                                                                                                                                         |
 
 ## Requisitos y desarrollo
 
@@ -118,25 +119,25 @@ npm run preview           # http://127.0.0.1:4173
 npm run ingest:fixtures   # sin conexión: datos de demostración
 ```
 
-| Script                                                  | Qué hace                                                                                              |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                           | Servidor de desarrollo de Vite                                                                        |
-| `npm run build` / `npm run preview`                     | Compila y sirve el build de producción                                                                |
-| `npm run build:e2e`                                     | Build para los tests: incluye `/ui-kit` y unos datos de prueba deterministas (`scripts/e2e-data.ts`)  |
-| `npm run icons`                                         | Regenera los iconos de la app, el favicon y la imagen para compartir a partir de `public/favicon.svg` |
-| `npm run hero-map`                                      | Regenera el fondo de mapa (claro y oscuro) de la ilustración del inicio con OpenFreeMap               |
-| `npm run screenshots`                                   | Genera las capturas de este README (`docs/screenshots/`) con Playwright sobre la web real             |
-| `npm run brands:check`                                  | Valida los logos de `public/brands/` y lista las marcas sin logo                                      |
-| `npm run licenses`                                      | Lista las licencias de las librerías que se distribuyen                                               |
-| `npm run check:build`                                   | Falla si `dist/` lleva la galería o le faltan los ficheros de la PWA y de buscadores                  |
-| `npm run ingest` / `npm run ingest:fixtures`            | Descarga, normaliza, valida y genera `public/data/` (real o de demostración)                          |
-| `npm run check:data`                                    | Valida el contenido de `public/data/`                                                                 |
-| `npm run cadence`                                       | Mide cada cuánto cambian los precios (resultado en `docs/cadencia.json`)                              |
-| `npm run size`                                          | Tamaño de los ficheros de datos en bruto, gzip y brotli                                               |
-| `npm test`                                              | Tests unitarios (Vitest)                                                                              |
-| `npm run test:e2e`                                      | Tests de navegador (Playwright)                                                                       |
-| `npm run test:e2e:live`                                 | Prueba contra los servidores reales de OpenFreeMap; aparte porque depende de un servicio externo      |
-| `npm run lint` / `npm run typecheck` / `npm run format` | Calidad de código                                                                                     |
+| Script                                                  | Qué hace                                                                                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                           | Servidor de desarrollo de Vite                                                                                              |
+| `npm run build` / `npm run preview`                     | Compila y sirve el build de producción                                                                                      |
+| `npm run build:e2e`                                     | Build para los tests: incluye `/ui-kit` y unos datos de prueba deterministas (`scripts/e2e-data.ts`)                        |
+| `npm run icons`                                         | Regenera los iconos de la app, el favicon y la imagen para compartir a partir de `public/favicon.svg`                       |
+| `npm run hero-map`                                      | Regenera el fondo de mapa (claro y oscuro) de la ilustración del inicio con OpenFreeMap                                     |
+| `npm run screenshots`                                   | Genera las capturas de este README (`docs/screenshots/`) con Playwright sobre la web real                                   |
+| `npm run brands:check`                                  | Valida los logos de `public/brands/` y lista las marcas sin logo                                                            |
+| `npm run licenses`                                      | Genera `public/licencias-de-terceros.txt` (se publica con la web) y lista las licencias de las librerías que se distribuyen |
+| `npm run check:build`                                   | Falla si `dist/` lleva la galería o le faltan los ficheros de la PWA y de buscadores                                        |
+| `npm run ingest` / `npm run ingest:fixtures`            | Descarga, normaliza, valida y genera `public/data/` (real o de demostración)                                                |
+| `npm run check:data`                                    | Valida el contenido de `public/data/`                                                                                       |
+| `npm run cadence`                                       | Mide cada cuánto cambian los precios (resultado en `docs/cadencia.json`)                                                    |
+| `npm run size`                                          | Tamaño de los ficheros de datos en bruto, gzip y brotli                                                                     |
+| `npm test`                                              | Tests unitarios (Vitest)                                                                                                    |
+| `npm run test:e2e`                                      | Tests de navegador (Playwright)                                                                                             |
+| `npm run test:e2e:live`                                 | Prueba contra los servidores reales de OpenFreeMap; aparte porque depende de un servicio externo                            |
+| `npm run lint` / `npm run typecheck` / `npm run format` | Calidad de código                                                                                                           |
 
 Si un test e2e se queda esperando, puede haber un servidor antiguo en los puertos 4173 o 4174: ciérralo antes de volver a lanzarlos.
 
@@ -148,7 +149,7 @@ Gasora es un proyecto independiente, no afiliado ni respaldado por el Ministerio
 
 Mapa: © OpenMapTiles, Data from OpenStreetMap, servido por OpenFreeMap.
 
-El resultado de la revisión de licencias y atribuciones de todo lo que se distribuye (datos, mapa, fuentes, librerías y logos) está en [docs/licencias-y-atribuciones.md](docs/licencias-y-atribuciones.md).
+El resultado de la revisión de licencias y atribuciones de todo lo que se distribuye (datos, mapa, fuentes, librerías y logos) está en [docs/licencias-y-atribuciones.md](docs/licencias-y-atribuciones.md). Los avisos y textos de licencia de las librerías que se distribuyen están en [`public/licencias-de-terceros.txt`](public/licencias-de-terceros.txt), publicado con la web y enlazado desde «Acerca de».
 
 ## Logos de marcas
 
