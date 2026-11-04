@@ -12,6 +12,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:e2e": "vite build --mode e2e && tsx scripts/e2e-data.ts --out dist/data",
+    "build:e2e:base": "vite build --mode e2e --base /gasora/ --outDir dist-base && tsx scripts/e2e-data.ts --out dist-base/data",
+    "preview:base": "vite preview --base /gasora/ --outDir dist-base --host 127.0.0.1 --port 4174 --strictPort",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "ingest": "tsx scripts/ingest.ts",
     "ingest:fixtures": "tsx scripts/ingest.ts --fixtures",
@@ -19,6 +21,7 @@
     "check:build": "tsx scripts/check-build.ts",
     "cadence": "tsx scripts/cadence.ts",
     "size": "tsx scripts/measure-size.ts",
+    "icons": "tsx scripts/make-icons.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:live": "playwright test -c playwright.live.config.ts",
@@ -55,6 +58,9 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "5.0.5",
+    "workbox-build": "7.4.1",
+    "workbox-window": "7.4.1"
   }
 }
