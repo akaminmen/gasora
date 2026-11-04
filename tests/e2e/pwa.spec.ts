@@ -378,3 +378,43 @@ test.describe('actualizaciones', () => {
     );
   });
 });
+
+test.describe('logos de marca', () => {
+  test('no van en la precarga; se guardan al verlos y se ven sin conexión', async ({
+    page,
+    context,
+  }) => {
+    await ready(page);
+    const precached = await page.evaluate(async () => {
+      const names = (await caches.keys()).filter((name) => name.includes('precache'));
+      const urls: string[] = [];
+      for (const name of names) {
+        for (const request of await (await caches.open(name)).keys()) urls.push(request.url);
+      }
+      return urls;
+    });
+    expect(precached.length).toBeGreaterThan(10);
+    expect(precached.filter((url) => url.includes('/brands/'))).toEqual([]);
+
+    // La galería (solo en el build de pruebas) muestra los logos de prueba de Ballenoil y Shell
+    await page.goto('ui-kit');
+    await expect(page.locator('.brand-logo img').first()).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          if (!(await caches.keys()).includes('gasora-brand-logos-v1')) return [];
+          const cache = await caches.open('gasora-brand-logos-v1');
+          return (await cache.keys()).map((request) => new URL(request.url).pathname);
+        }),
+      )
+      .toContain('/gasora/brands/ballenoil.svg');
+
+    await context.setOffline(true);
+    await page.reload();
+    const img = page.locator('.brand-logo img').first();
+    await expect(img).toBeVisible();
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  });
+});
