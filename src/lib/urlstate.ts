@@ -1,4 +1,4 @@
-import { FUELS, type FuelId } from './data-schema';
+import { FUELS, type FuelId } from './fuel-ids';
 import { DEFAULT_RADIUS_KM, MAX_RADIUS_KM, MIN_RADIUS_KM, usesRadius, type Place } from './place';
 import type { SortKey } from './resultset';
 

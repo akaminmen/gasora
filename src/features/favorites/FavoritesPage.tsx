@@ -65,8 +65,9 @@ function PlainRow({
 
 /** Favoritos (F8): guardados en `gasora:favorites:v1`, con su precio actual. */
 export function FavoritesPage() {
-  const { state, retry } = useGasoraData();
   const ids = useFavoritesStore((s) => s.ids);
+  // Sin favoritos no hace falta ningún dato
+  const { state, retry } = useGasoraData({ defer: ids.length === 0 });
   const remove = useFavoritesStore((s) => s.remove);
   const fuel = useUiStore((s) => s.fuel);
   const setFuel = useUiStore((s) => s.setFuel);

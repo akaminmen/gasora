@@ -1,8 +1,8 @@
 import {
   metaSchema,
-  pricesFileSchema,
+  parsePricesLight,
+  parseStationsLight,
   searchIndexSchema,
-  stationsFileSchema,
   type Meta,
   type PricesFile,
   type SearchIndex,
@@ -78,8 +78,8 @@ export async function loadData(): Promise<GasoraData> {
   ]);
   return {
     meta,
-    stations: stationsFileSchema.parse(stationsResult.json),
-    prices: pricesFileSchema.parse(pricesResult.json),
+    stations: parseStationsLight(stationsResult.json),
+    prices: parsePricesLight(pricesResult.json),
     fromCache: metaResult.fromCache || stationsResult.fromCache || pricesResult.fromCache,
   };
 }
@@ -88,7 +88,7 @@ export async function loadData(): Promise<GasoraData> {
 export async function loadFreshPrices(): Promise<{ meta: Meta; prices: PricesFile }> {
   const [meta, prices] = await Promise.all([
     getJson('meta.json', 'no-cache', false).then((r) => metaSchema.parse(r.json)),
-    getJson('prices.json', 'no-cache', false).then((r) => pricesFileSchema.parse(r.json)),
+    getJson('prices.json', 'no-cache', false).then((r) => parsePricesLight(r.json)),
   ]);
   return { meta, prices };
 }

@@ -5,7 +5,7 @@ import { PageColumn } from '../../components/PageHeader';
 import { Button, LinkButton } from '../../components/ui/Button';
 import { EmptyState, ErrorState, StationDetailSkeleton } from '../../components/ui/Feedback';
 import { StationDetail } from '../../components/ui/StationDetail';
-import { FUELS } from '../../lib/data-schema';
+import { FUELS } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime } from '../../lib/format';
 import { absoluteUrl } from '../../lib/share';

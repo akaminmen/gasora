@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FUELS, type FuelId } from '../lib/data-schema';
+import { FUELS, type FuelId } from '../lib/fuel-ids';
 import { readStorage, writeStorage } from '../lib/storage';
 
 export type ThemeChoice = 'light' | 'dark';

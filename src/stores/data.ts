@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { buildBrandGroups } from '../lib/brands';
 import type { Station } from '../lib/data-schema';
-import { loadData, loadFreshPrices, loadSearchIndex, type GasoraData } from '../lib/data';
+import type { GasoraData } from '../lib/data';
 import { createSearcher, type Searcher } from '../lib/search-index';
 
 export type DataState =
@@ -29,7 +29,12 @@ interface DataStore {
   loadIndex: () => Promise<void>;
   /** Vuelve a pedir meta y precios si han pasado más de `maxAgeMs`. */
   refreshPrices: (maxAgeMs?: number) => Promise<void>;
+  /** Al volver la conexión: sustituye los datos guardados por los actuales. */
+  recover: () => Promise<void>;
 }
+
+/** zod y la carga de ficheros van en un trozo aparte: no cuentan para el primer pintado. */
+const dataModule = () => import('../lib/data');
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -45,7 +50,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   load: () => {
     if (get().state.status === 'ready') return Promise.resolve();
-    loading ??= loadData()
+    loading ??= dataModule()
+      .then((m) => m.loadData())
       .then(
         (data) => {
           set({
@@ -76,7 +82,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
     loadingIndex ??= (async () => {
       set({ index: { status: 'loading' } });
       try {
-        set({ index: { status: 'ready', searcher: createSearcher(await loadSearchIndex()) } });
+        set({
+          index: {
+            status: 'ready',
+            searcher: createSearcher(await (await dataModule()).loadSearchIndex()),
+          },
+        });
       } catch (error) {
         set({ index: { status: 'error', message: message(error) } });
       }
@@ -86,11 +97,34 @@ export const useDataStore = create<DataStore>((set, get) => ({
     return loadingIndex;
   },
 
+  recover: async () => {
+    const { state } = get();
+    if (state.status === 'error') {
+      await get().retry();
+      return;
+    }
+    if (state.status !== 'ready' || !state.data.fromCache) {
+      await get().refreshPrices();
+      return;
+    }
+    try {
+      const data = await (await dataModule()).loadData();
+      set({
+        state: { status: 'ready', data },
+        brandGroups: buildBrandGroups(data.stations.stations),
+        stationsById: new Map(data.stations.stations.map((s) => [s.id, s])),
+        loadedAt: Date.now(),
+      });
+    } catch {
+      // Sigue sin red de verdad: se mantienen los datos guardados.
+    }
+  },
+
   refreshPrices: async (maxAgeMs = 10 * 60 * 1000) => {
     const { state, loadedAt } = get();
     if (state.status !== 'ready' || Date.now() - loadedAt < maxAgeMs) return;
     try {
-      const fresh = await loadFreshPrices();
+      const fresh = await (await dataModule()).loadFreshPrices();
       // Si la ingesta cambió las estaciones (otro hash), se recarga todo en la próxima visita.
       if (fresh.meta.stationsFile !== state.data.meta.stationsFile) {
         loading = undefined;
@@ -116,6 +150,11 @@ export function watchVisibility(): () => void {
   const onVisible = () => {
     if (document.visibilityState === 'visible') void useDataStore.getState().refreshPrices();
   };
+  const onOnline = () => void useDataStore.getState().recover();
   document.addEventListener('visibilitychange', onVisible);
-  return () => document.removeEventListener('visibilitychange', onVisible);
+  window.addEventListener('online', onOnline);
+  return () => {
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('online', onOnline);
+  };
 }

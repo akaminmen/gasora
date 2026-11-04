@@ -23,7 +23,9 @@ function zoneName(place: Place): string {
 
 /** Calculadora de ahorro (F9): litros, combustible y con qué se compara la más barata. */
 export function CalculatorPage() {
-  const { state, retry } = useGasoraData();
+  // Sin una búsqueda no hace falta ningún dato: se descargan cuando haya algo que calcular
+  const searching = useSearchStore((s) => s.place !== null);
+  const { state, retry } = useGasoraData({ defer: !searching });
   const brandGroups = useDataStore((s) => s.brandGroups);
   const fuel = useUiStore((s) => s.fuel);
   const setFuel = useUiStore((s) => s.setFuel);

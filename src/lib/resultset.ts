@@ -1,5 +1,6 @@
 import { haversineKm } from './geo';
-import { FUELS, type FuelId, type PricesFile, type Station } from './data-schema';
+import type { PricesFile, Station } from './data-schema';
+import { FUELS, type FuelId } from './fuel-ids';
 import { OTHER_BRAND, brandLabel } from './brands';
 import { hasOrigin, usesRadius, type Place } from './place';
 import { DEFAULT_LITERS, priceStats, savingPerTank, tierOf, type PriceStats } from './pricing';

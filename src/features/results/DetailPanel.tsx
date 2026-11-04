@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { StationDetail } from '../../components/ui/StationDetail';
-import { FUELS, type FuelId, type Meta, type PricesFile } from '../../lib/data-schema';
+import type { Meta, PricesFile } from '../../lib/data-schema';
+import { FUELS, type FuelId } from '../../lib/fuel-ids';
 import { formatDateTime } from '../../lib/format';
 import type { ResultItem } from '../../lib/resultset';
 import { useDataStore } from '../../stores/data';

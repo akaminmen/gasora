@@ -1,15 +1,9 @@
 import { z } from 'zod';
+import { FUELS, PRICE_MAX, PRICE_MIN, SCHEMA_VERSION } from './fuel-ids';
 
-/** Contrato del JSON generado por la ingesta y leído por la app. */
-export const SCHEMA_VERSION = 1;
-
-/** Orden de `fuels`: define el índice de cada precio en prices.json (ADR 002: sin E10). */
-export const FUELS = ['g95e5', 'g98e5', 'goa', 'goap', 'glp', 'gnc'] as const;
-export type FuelId = (typeof FUELS)[number];
-
-/** Rango de cordura en milésimas de euro por litro (sección 5.1 del plan). */
-export const PRICE_MIN = 500;
-export const PRICE_MAX = 4000;
+// Las constantes viven en fuel-ids.ts para que la interfaz no cargue zod en el primer pintado.
+export { FUELS, PRICE_MAX, PRICE_MIN, SCHEMA_VERSION };
+export type { FuelId } from './fuel-ids';
 
 const iso = z.iso.datetime();
 
@@ -49,6 +43,20 @@ export const stationSchema = z.object({
 });
 export type Station = z.infer<typeof stationSchema>;
 
+/**
+ * Validación ligera para el navegador: la ingesta ya validó todos los ficheros con los esquemas
+ * completos (`stationsFileSchema`, `pricesFileSchema`), así que aquí solo se comprueba la cabecera
+ * y una muestra repartida de filas. Validar las ~11.350 estaciones en cada carga costaba ≈ 90 ms
+ * de hilo principal en un portátil (≈ 350 ms en un móvil de gama media).
+ */
+export const SAMPLE_SIZE = 40;
+
+/** Índices repartidos de forma uniforme (incluidos el primero y el último). */
+export function sampleIndexes(length: number, count = SAMPLE_SIZE): number[] {
+  if (length <= count) return Array.from({ length }, (_, i) => i);
+  return Array.from({ length: count }, (_, i) => Math.round((i * (length - 1)) / (count - 1)));
+}
+
 export const stationsFileSchema = z.object({
   schema: z.literal(SCHEMA_VERSION),
   fuels: z.tuple([
@@ -63,7 +71,7 @@ export const stationsFileSchema = z.object({
 });
 export type StationsFile = z.infer<typeof stationsFileSchema>;
 
-const priceRow = z
+export const priceRow = z
   .array(z.number().int().min(PRICE_MIN).max(PRICE_MAX).nullable())
   .length(FUELS.length);
 
@@ -110,3 +118,25 @@ export const searchIndexSchema = z.object({
   ),
 });
 export type SearchIndex = z.infer<typeof searchIndexSchema>;
+
+const stationsHeader = z.object({
+  schema: z.literal(SCHEMA_VERSION),
+  fuels: stationsFileSchema.shape.fuels,
+  stations: z.array(z.unknown()).min(1),
+});
+const pricesHeader = z.object({ updatedAt: iso, p: z.record(z.string(), z.unknown()) });
+
+/** Comprueba la cabecera y una muestra de estaciones; devuelve el fichero tipado. */
+export function parseStationsLight(json: unknown): StationsFile {
+  const header = stationsHeader.parse(json);
+  for (const i of sampleIndexes(header.stations.length)) stationSchema.parse(header.stations[i]);
+  return json as StationsFile;
+}
+
+/** Comprueba la cabecera y una muestra de filas de precios; devuelve el fichero tipado. */
+export function parsePricesLight(json: unknown): PricesFile {
+  const header = pricesHeader.parse(json);
+  const ids = Object.keys(header.p);
+  for (const i of sampleIndexes(ids.length)) priceRow.parse(header.p[ids[i] as string]);
+  return json as PricesFile;
+}

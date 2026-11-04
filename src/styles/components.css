@@ -618,3 +618,8 @@
     display: none;
   }
 }
+
+/* El pie no se ve mientras llega el trozo de la pantalla (evita un salto de diseño al cargarlo). */
+body[data-route-loading] footer {
+  visibility: hidden;
+}

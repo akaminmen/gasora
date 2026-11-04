@@ -1,4 +1,5 @@
 import { Check, LocateFixed, ShieldCheck } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
 import { StationCardSkeleton } from '../../components/ui/Feedback';
@@ -7,14 +8,18 @@ import { useGasoraData } from '../../lib/useGasoraData';
 import { useLocationStore } from '../../stores/location';
 import { useSearchStore } from '../../stores/search';
 import { useUiStore } from '../../stores/ui';
-import { ResultsView } from '../results/ResultsView';
 import { SearchBox } from '../search/SearchBox';
 import { LocationPanel } from './LocationPanel';
 import { useUrlSync } from './useUrlSync';
 import { HeroPreview } from './HeroPreview';
 
+// Los resultados (lista, filtros, ficha) se cargan al buscar, no con el inicio
+const ResultsView = lazy(() =>
+  import('../results/ResultsView').then((m) => ({ default: m.ResultsView })),
+);
+
 function DataStatus() {
-  const { state, retry } = useGasoraData();
+  const { state, retry } = useGasoraData({ defer: true });
   if (state.status === 'loading') {
     return (
       <p data-testid="status-line" className="text-[0.8125rem] text-muted">
@@ -74,7 +79,19 @@ export function HomePage() {
       </div>
     );
   }
-  if (place) return <ResultsView place={place} />;
+  if (place) {
+    return (
+      <Suspense
+        fallback={
+          <div className="mx-auto w-full max-w-[1100px] px-4 py-6 lg:px-6" aria-busy="true">
+            <StationCardSkeleton />
+          </div>
+        }
+      >
+        <ResultsView place={place} />
+      </Suspense>
+    );
+  }
   return <Hero />;
 }
 

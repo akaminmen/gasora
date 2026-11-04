@@ -1,4 +1,5 @@
-import { FUELS, type FuelId, type PricesFile, type Station } from './data-schema';
+import type { PricesFile, Station } from './data-schema';
+import { FUELS, type FuelId } from './fuel-ids';
 import { buildResultSet, type ResultItem } from './resultset';
 
 /** Radio de la «zona» con el que se compara una estación suelta (ficha y favoritos). */
