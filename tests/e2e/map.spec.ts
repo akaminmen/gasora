@@ -316,6 +316,17 @@ test.describe('posición del usuario', () => {
       .poll(async () => Math.abs((await view(page)).lat - MALAGA.latitude))
       .toBeLessThan(0.1);
 
+    // Espera a que termine la animación del encuadre: un arrastre durante ella se pierde
+    let previous = await view(page);
+    await expect
+      .poll(async () => {
+        await page.waitForTimeout(400);
+        const now = await view(page);
+        const still = now.lat === previous.lat && now.lng === previous.lng;
+        previous = now;
+        return still;
+      })
+      .toBe(true);
     const box = await map(page).boundingBox();
     if (!box) throw new Error('sin caja');
     await page.mouse.move(box.x + 300, box.y + 300);

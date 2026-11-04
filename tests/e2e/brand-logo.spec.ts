@@ -1,4 +1,4 @@
-import { stations } from './data';
+import { sellers, stations } from './data';
 import { expect, test } from './fixtures';
 
 /**
@@ -6,7 +6,9 @@ import { expect, test } from './fixtures';
  * (archivos de prueba que escribe scripts/e2e-data.ts); el resto de marcas usa el avatar.
  */
 const ballenoil = stations.find((s) => s.b === 'ballenoil');
-const repsol = stations.find((s) => s.b === 'repsol');
+// Una estación sin logo propio (marca desconocida), para ver el avatar de respaldo aunque el
+// propietario vaya añadiendo logos reales a public/brands/
+const plain = sellers('g95e5').find((s) => s.b === 'otras') ?? sellers('g95e5')[0];
 
 test.describe('BrandLogo', () => {
   test('en la galería: logo cuadrado del tamaño del avatar, con alt vacío y fondo claro en el tema oscuro', async ({
@@ -55,7 +57,7 @@ test.describe('BrandLogo', () => {
     const logo = page.getByTestId('station-detail').locator('.brand-logo');
     await expect(logo).toBeVisible();
     expect((await logo.boundingBox())!.width).toBe(52);
-    await page.goto(`/e/${repsol!.id}`);
+    await page.goto(`/e/${plain!.id}`);
     await expect(page.getByTestId('station-detail').locator('.brand-avatar')).toBeVisible();
     await expect(page.getByTestId('station-detail').locator('.brand-logo')).toHaveCount(0);
   });
@@ -63,7 +65,7 @@ test.describe('BrandLogo', () => {
   test('favoritos: tarjetas con logo o avatar según la marca', async ({ page }) => {
     await page.addInitScript(
       (ids) => localStorage.setItem('gasora:favorites:v1', JSON.stringify(ids)),
-      [ballenoil!.id, repsol!.id],
+      [ballenoil!.id, plain!.id],
     );
     await page.goto('/favoritos');
     await expect(page.getByTestId('station-card')).toHaveCount(2);
