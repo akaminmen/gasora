@@ -43,6 +43,8 @@ interface SearchState {
   selectedId: string | null;
   select: (id: string | null) => void;
   setPlace: (place: Place) => void;
+  /** «Buscar en esta zona»: cambia la zona y el radio y conserva el orden y el filtro de marcas. */
+  searchArea: (place: Place, radiusKm: number) => void;
   clearPlace: () => void;
   setRadius: (km: number) => void;
   setSort: (sort: SortKey) => void;
@@ -79,6 +81,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   select: (selectedId) => set({ selectedId }),
   // Cada búsqueda nueva empieza con radio por defecto, orden por precio y todas las marcas.
   setPlace: (place) => set({ place, radiusKm: DEFAULT_RADIUS_KM, ...reset }),
+  searchArea: (place, radiusKm) => set({ place, radiusKm, limit: PAGE_SIZE, selectedId: null }),
   clearPlace: () => set({ place: null, radiusKm: DEFAULT_RADIUS_KM, ...reset }),
   setRadius: (radiusKm) => set({ radiusKm, limit: PAGE_SIZE }),
   setSort: (sort) => set({ sort, limit: PAGE_SIZE }),

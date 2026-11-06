@@ -12,14 +12,28 @@ export type Place =
       /** true tras «Ampliar a 10 km»: se busca por radio desde el centroide del municipio */
       expanded?: boolean;
     }
-  | { kind: 'province'; label: string; lat: number; lng: number; id: number };
+  | { kind: 'province'; label: string; lat: number; lng: number; id: number }
+  | {
+      /** «Buscar en esta zona»: círculo (centro del mapa + radio) elegido moviendo el mapa */
+      kind: 'area';
+      label: string;
+      lat: number;
+      lng: number;
+      /** Ubicación del usuario, si se usó: de ahí se miden las distancias (nunca va a la URL) */
+      origin?: { lat: number; lng: number };
+    };
 
-/** ¿La distancia tiene sentido? Solo desde un punto concreto (ubicación o código postal). */
+/** ¿La distancia tiene sentido? Solo desde un punto concreto (ubicación, código postal o zona). */
 export function hasOrigin(place: Place): boolean {
-  return place.kind === 'location' || place.kind === 'postal';
+  return place.kind === 'location' || place.kind === 'postal' || place.kind === 'area';
 }
 
-/** ¿Se filtra por radio? Ubicación y CP siempre; el municipio solo si se amplió. */
+/** Punto desde el que se miden las distancias: la ubicación del usuario en una zona, si la hay. */
+export function distanceOrigin(place: Place): { lat: number; lng: number } {
+  return place.kind === 'area' && place.origin ? place.origin : place;
+}
+
+/** ¿Se filtra por radio? Ubicación, CP y zona siempre; el municipio solo si se amplió. */
 export function usesRadius(place: Place): boolean {
   return hasOrigin(place) || (place.kind === 'municipality' && place.expanded === true);
 }

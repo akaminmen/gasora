@@ -31,6 +31,15 @@ export function useUrlSync() {
       restored.current = true;
       return;
     }
+    if (wanted.place.kind === 'area') {
+      // La zona del mapa se restaura sin datos ni índice: centro y radio vienen en la URL
+      const { lat, lng } = wanted.place;
+      search.setPlace({ kind: 'area', label: 'Zona del mapa', lat, lng });
+      if (wanted.radiusKm) useSearchStore.getState().setRadius(wanted.radiusKm);
+      if (wanted.sort) useSearchStore.getState().setSort(wanted.sort);
+      restored.current = true;
+      return;
+    }
     let cancelled = false;
     search.setResolving(true);
     void (async () => {
@@ -44,7 +53,9 @@ export function useUrlSync() {
             ? index.searcher.postal(ref.code)
             : ref.kind === 'municipality'
               ? index.searcher.municipality(ref.id)
-              : index.searcher.province(ref.id)
+              : ref.kind === 'province'
+                ? index.searcher.province(ref.id)
+                : undefined
           : undefined;
       if (found) {
         useSearchStore

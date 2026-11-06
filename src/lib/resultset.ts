@@ -2,7 +2,7 @@ import { haversineKm } from './geo';
 import type { PricesFile, Station } from './data-schema';
 import { FUELS, type FuelId } from './fuel-ids';
 import { OTHER_BRAND, brandLabel } from './brands';
-import { hasOrigin, usesRadius, type Place } from './place';
+import { distanceOrigin, hasOrigin, usesRadius, type Place } from './place';
 import { DEFAULT_LITERS, priceStats, savingPerTank, tierOf, type PriceStats } from './pricing';
 import type { Tier } from './tiers';
 
@@ -62,6 +62,7 @@ export function buildResultSet(query: ResultQuery): ResultSet {
   const fuelIndex = FUELS.indexOf(fuel);
   const origin = hasOrigin(place);
   const byRadius = usesRadius(place);
+  const from = distanceOrigin(place);
 
   const candidates: { station: Station; price: number; distanceKm?: number }[] = [];
   for (const station of query.stations) {
@@ -74,8 +75,12 @@ export function buildResultSet(query: ResultQuery): ResultSet {
     }
     let distanceKm: number | undefined;
     if (byRadius || origin) {
-      distanceKm = haversineKm(place.lat, place.lng, station.lat, station.lng);
-      if (byRadius && distanceKm > query.radiusKm) continue;
+      // El radio se mide desde el centro de la búsqueda; la distancia que se muestra, desde `from`
+      // (en una zona del mapa, la ubicación del usuario si existe)
+      const fromCenter = haversineKm(place.lat, place.lng, station.lat, station.lng);
+      if (byRadius && fromCenter > query.radiusKm) continue;
+      distanceKm =
+        from === place ? fromCenter : haversineKm(from.lat, from.lng, station.lat, station.lng);
     }
     candidates.push({ station, price, ...(distanceKm !== undefined ? { distanceKm } : {}) });
   }
