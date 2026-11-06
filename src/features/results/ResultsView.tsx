@@ -16,6 +16,7 @@ import {
 } from '../../components/ui/Feedback';
 import { StationCard } from '../../components/ui/Station';
 import { useLayoutMode } from '../../hooks/useLayoutMode';
+import { searchedRegion, type Circle } from '../../lib/areas';
 import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime, formatPrice } from '../../lib/format';
 import {
@@ -38,6 +39,7 @@ import { useFavoritesStore } from '../../stores/favorites';
 import { DetailPanel } from './DetailPanel';
 
 function title(place: Place): string {
+  if (place.kind === 'area') return 'Gasolineras en esta zona del mapa';
   return place.kind === 'location' ? 'Gasolineras cerca de ti' : `Gasolineras en ${place.label}`;
 }
 
@@ -60,9 +62,31 @@ export function ResultsView({ place }: { place: Place }) {
   const toggleFavorite = useFavoritesStore((s) => s.toggle);
   const mode = useLayoutMode();
   const { radiusKm, sort, brands, liters, limit, selectedId } = useSearchStore();
-  const { setRadius, setSort, setBrands, showMore, widen, clearPlace, select, revealIndex } =
-    useSearchStore.getState();
+  const {
+    setRadius,
+    setSort,
+    setBrands,
+    showMore,
+    widen,
+    clearPlace,
+    select,
+    revealIndex,
+    searchArea,
+  } = useSearchStore.getState();
   const [snap, setSnap] = useState<SheetSnap>('mid');
+  // Modo exploración (móvil): la hoja replegada a una línea mientras se explora el mapa
+  // Replegada para una búsqueda y una selección concretas: otra búsqueda u otra estación la reabren
+  const [collapsedAt, setCollapsedAt] = useState<string | null>(null);
+  const currentKey = placeKey(place);
+  const contextKey = `${currentKey}|${selectedId ?? ''}`;
+  const collapsed = collapsedAt === contextKey;
+  const setCollapsed = (value: boolean) => setCollapsedAt(value ? contextKey : null);
+  // «Buscar en esta zona»: la búsqueda pendiente de anunciar y el aviso si el radio se recortó
+  const pendingArea = useRef<{ limited: boolean } | null>(null);
+  const [mapSearchKey, setMapSearchKey] = useState<string | null>(null);
+  const [areaMsg, setAreaMsg] = useState<{ key: string; text: string; limited: boolean } | null>(
+    null,
+  );
   const [sheetHeight, setSheetHeight] = useState(0);
   const [floatingHeight, setFloatingHeight] = useState(124);
   const floatingRef = useRef<HTMLDivElement>(null);
@@ -127,11 +151,47 @@ export function ResultsView({ place }: { place: Place }) {
     (id: string) => {
       select(id);
       setSnap((s) => (s === 'compact' ? 'mid' : s));
+      setCollapsedAt(null);
     },
     [select],
   );
 
   const fuelLabel = FUEL_LABELS[fuel];
+  // Zona que cubre la búsqueda (para decidir cuándo ofrecer «Buscar en esta zona»)
+  const region = useMemo<Circle | null>(
+    () =>
+      result
+        ? searchedRegion(
+            place,
+            radiusKm,
+            result.items.map((i) => ({ lat: i.station.lat, lng: i.station.lng })),
+          )
+        : null,
+    [result, place, radiusKm],
+  );
+  const searchHere = useCallback(
+    (area: Circle & { limited: boolean }) => {
+      const origin =
+        place.kind === 'location'
+          ? { lat: place.lat, lng: place.lng }
+          : place.kind === 'area'
+            ? place.origin
+            : undefined;
+      const next: Place = {
+        kind: 'area',
+        label: 'Zona del mapa',
+        lat: area.lat,
+        lng: area.lng,
+        ...(origin ? { origin } : {}),
+      };
+      pendingArea.current = { limited: area.limited };
+      setMapSearchKey(placeKey(next)); // el mapa se queda donde está: no se vuelve a encuadrar
+      setSnap('compact');
+      searchArea(next, area.radiusKm);
+    },
+    [place, searchArea],
+  );
+
   const widenLabel =
     place.kind === 'municipality' && !place.expanded
       ? `Ampliar a ${EXPANDED_MUNICIPALITY_KM} km`
@@ -145,10 +205,40 @@ export function ResultsView({ place }: { place: Place }) {
       : `Sin gasolineras con ${fuelLabel}`
     : 'Buscando…';
 
+  // Tras «Buscar en esta zona»: lista arriba y aviso educado con el número de gasolineras
+  useEffect(() => {
+    const pending = pendingArea.current;
+    if (!pending || !result || place.kind !== 'area') return;
+    pendingArea.current = null;
+    const n = result.visible.length;
+    setAreaMsg({
+      key: `${currentKey}|${radiusKm}|${fuel}`,
+      text: `${n.toLocaleString('es-ES')} ${n === 1 ? 'gasolinera' : 'gasolineras'} en esta zona`,
+      limited: pending.limited,
+    });
+    document
+      .querySelector('[data-testid="list-scroll"], [data-testid="sheet-content"]')
+      ?.scrollTo({ top: 0 });
+  }, [result, place, currentKey, radiusKm, fuel]);
+  const areaNow = areaMsg && areaMsg.key === `${currentKey}|${radiusKm}|${fuel}` ? areaMsg : null;
+  const areaNote =
+    areaNow?.limited && place.kind === 'area' ? (
+      <p
+        className="mb-3 rounded-card border border-line bg-surface p-3 text-sm text-muted"
+        data-testid="area-limited"
+      >
+        Acerca el mapa para ver todas las gasolineras de la zona.
+      </p>
+    ) : null;
+
   // Aviso para lectores de pantalla cuando llegan los resultados o cambian (combustible, radio…)
   const announcement = (
     <p className="sr-only" role="status" data-testid="results-announcement">
-      {result ? `${title(place)}. ${summary}` : ''}
+      {result
+        ? areaNow
+          ? `${areaNow.text}.${areaNow.limited ? ' Acerca el mapa para ver todas las gasolineras de la zona.' : ''}`
+          : `${title(place)}. ${summary}`
+        : ''}
     </p>
   );
 
@@ -188,7 +278,11 @@ export function ResultsView({ place }: { place: Place }) {
     list = (
       <EmptyState
         title="No encontramos gasolineras aquí"
-        text={`Ninguna gasolinera de esta zona vende ${fuelLabel}. Prueba con otro combustible o con una zona más amplia.`}
+        text={
+          place.kind === 'area'
+            ? `Aleja el mapa o prueba otra zona. Ninguna gasolinera de esta zona vende ${fuelLabel}.`
+            : `Ninguna gasolinera de esta zona vende ${fuelLabel}. Prueba con otro combustible o con una zona más amplia.`
+        }
         actions={
           canWiden(place, radiusKm) ? (
             <Button size="lg" icon={<Expand width={18} height={18} aria-hidden />} onClick={widen}>
@@ -264,10 +358,16 @@ export function ResultsView({ place }: { place: Place }) {
       />
     ) : null;
 
-  const user = place.kind === 'location' ? { lat: place.lat, lng: place.lng } : null;
-  const fitKey = result
-    ? `${placeKey(place)}|${usesRadius(place) ? radiusKm : ''}|${brands.join(',')}`
-    : null;
+  const user =
+    place.kind === 'location'
+      ? { lat: place.lat, lng: place.lng }
+      : place.kind === 'area' && place.origin
+        ? place.origin
+        : null;
+  const fitKey =
+    result && !(place.kind === 'area' && mapSearchKey === currentKey)
+      ? `${placeKey(place)}|${usesRadius(place) ? radiusKm : ''}|${brands.join(',')}`
+      : null;
   const offline = data?.fromCache ? (
     <OfflineBanner date={formatDateTime(data.meta.sourceDate)} onRetry={retry} />
   ) : null;
@@ -288,6 +388,11 @@ export function ResultsView({ place }: { place: Place }) {
         fitKey={fitKey}
         inset={inset}
         showLegend={mode !== 'mobile'}
+        region={region}
+        onSearchArea={searchHere}
+        {...(mode === 'mobile'
+          ? { onUserGesture: () => setCollapsed(true), onEmptyTap: () => setCollapsed(true) }
+          : {})}
       />
     );
 
@@ -341,16 +446,19 @@ export function ResultsView({ place }: { place: Place }) {
         <div className="absolute right-3 z-20" style={{ bottom: sheetHeight + 12 }}>
           <Button
             icon={
-              snap === 'full' ? (
+              snap === 'full' && !collapsed ? (
                 <MapIcon width={18} height={18} aria-hidden />
               ) : (
                 <List width={18} height={18} aria-hidden />
               )
             }
-            onClick={() => setSnap(snap === 'full' ? 'compact' : 'full')}
+            onClick={() => {
+              setCollapsed(false);
+              setSnap(snap === 'full' && !collapsed ? 'compact' : 'full');
+            }}
             data-testid="sheet-toggle"
           >
-            {snap === 'full' ? 'Mapa' : 'Lista'}
+            {snap === 'full' && !collapsed ? 'Mapa' : 'Lista'}
           </Button>
         </div>
         <BottomSheet
@@ -360,12 +468,16 @@ export function ResultsView({ place }: { place: Place }) {
           header={header}
           onHeightChange={onSheetHeight}
           topReserve={floatingHeight + 8}
+          collapsed={collapsed}
+          collapsedLabel={`Mostrar lista de gasolineras${result ? ` (${result.visible.length})` : ''}`}
+          onExpand={() => setCollapsed(false)}
         >
           {offline && <div className="px-3 pb-2">{offline}</div>}
           {selectedItem ? (
             detail(3)
           ) : (
             <div className="px-3 pb-4">
+              {areaNote}
               {list}
               <div className="mt-3 flex justify-center">
                 <Button variant="ghost" onClick={clearPlace} data-testid="clear-search">
@@ -431,6 +543,7 @@ export function ResultsView({ place }: { place: Place }) {
             {controls}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5" data-testid="list-scroll">
+            {areaNote}
             {list}
           </div>
         </aside>

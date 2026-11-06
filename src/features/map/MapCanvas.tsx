@@ -3,10 +3,11 @@ import type { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // Vite no copia el worker de MapLibre por sí solo: se importa como recurso y se indica su URL.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { LocateFixed, Minus, Plus } from 'lucide-react';
+import { LocateFixed, Minus, Plus, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PricePin, TierSymbol } from '../../components/ui/Station';
+import { areaFromView, shouldOfferAreaSearch, type Circle, type ViewRect } from '../../lib/areas';
 import { formatPriceNumber } from '../../lib/format';
 import type { ResultItem } from '../../lib/resultset';
 import { TIER_LABELS, TIERS, type Tier } from '../../lib/tiers';
@@ -44,6 +45,14 @@ export interface MapCanvasProps {
   inset: MapInset;
   showLegend: boolean;
   onFailure: (message: string) => void;
+  /** Zona que cubre la búsqueda activa; con ella se decide cuándo ofrecer «Buscar en esta zona» */
+  region?: Circle | null;
+  /** Se pulsó «Buscar en esta zona»: la zona visible (centro, radio y si el radio se recortó) */
+  onSearchArea?: (area: Circle & { limited: boolean }) => void;
+  /** Una persona empezó a mover el mapa (arrastrar, pellizcar, doble toque, rueda); nunca un encuadre programático */
+  onUserGesture?: () => void;
+  /** Una persona tocó una zona vacía del mapa (ni un pin, ni un grupo, ni el marcador del usuario) */
+  onEmptyTap?: () => void;
 }
 
 const cssVar = (name: string) =>
@@ -79,6 +88,9 @@ interface Pin {
 /** Mapa MapLibre con OpenFreeMap. Se carga con import dinámico (ver MapPanel). */
 export default function MapCanvas(props: MapCanvasProps) {
   const { items, selectedId, onSelect, user, origin, fitKey, theme, inset, showLegend } = props;
+  const [offerArea, setOfferArea] = useState(false);
+  /** Movimiento causado por los botones + / − : cuenta como gesto para ofrecer «Buscar en esta zona» */
+  const controlMove = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new Map<string, { marker: Marker; el: HTMLDivElement }>());
@@ -88,12 +100,32 @@ export default function MapCanvas(props: MapCanvasProps) {
   const [pinIds, setPinIds] = useState<string[]>([]);
 
   // Valores que los manejadores del mapa leen sin volver a crear el mapa
-  const latest = useRef({ items, selectedId, inset, theme, onFailure: props.onFailure, onSelect });
+  const latest = useRef({
+    items,
+    selectedId,
+    inset,
+    theme,
+    onFailure: props.onFailure,
+    onSelect,
+    region: props.region ?? null,
+    onUserGesture: props.onUserGesture,
+    onEmptyTap: props.onEmptyTap,
+  });
   const byId = useMemo(() => new Map(items.map((i) => [i.station.id, i])), [items]);
   const byIdRef = useRef(byId);
   // Va antes que los demás efectos: los manejadores del mapa leen siempre lo último
   useEffect(() => {
-    latest.current = { items, selectedId, inset, theme, onFailure: props.onFailure, onSelect };
+    latest.current = {
+      items,
+      selectedId,
+      inset,
+      theme,
+      onFailure: props.onFailure,
+      onSelect,
+      region: props.region ?? null,
+      onUserGesture: props.onUserGesture,
+      onEmptyTap: props.onEmptyTap,
+    };
     byIdRef.current = byId;
   });
 
@@ -184,6 +216,29 @@ export default function MapCanvas(props: MapCanvasProps) {
     };
   };
 
+  /** Rectángulo visible (sin las zonas tapadas por la hoja y los controles flotantes). */
+  const visibleRect = useCallback((): ViewRect | null => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !container) return null;
+    const { inset: i } = latest.current;
+    const topLeft = map.unproject([i.left, i.top]);
+    const bottomRight = map.unproject([
+      container.clientWidth - i.right,
+      container.clientHeight - i.bottom,
+    ]);
+    return { north: topLeft.lat, west: topLeft.lng, south: bottomRight.lat, east: bottomRight.lng };
+  }, []);
+
+  /** ¿Hay que ofrecer «Buscar en esta zona»? Solo se llama al terminar un gesto. */
+  const evaluateOffer = useCallback(() => {
+    const { region, items: current } = latest.current;
+    const view = visibleRect();
+    if (!view || !region) return setOfferArea(false);
+    const points = current.map((item) => ({ lat: item.station.lat, lng: item.station.lng }));
+    setOfferArea(shouldOfferAreaSearch(view, region, points));
+  }, [visibleRect]);
+
   // Crear el mapa una sola vez
   useEffect(() => {
     const container = containerRef.current;
@@ -225,6 +280,27 @@ export default function MapCanvas(props: MapCanvasProps) {
         map.easeTo({ center: [lng, lat], zoom: zoom + 0.5, duration: reducedMotion() ? 0 : 350 });
       });
     });
+    // Gestos de una persona (con evento original) frente a encuadres programáticos (sin él)
+    map.on('movestart', (event) => {
+      if (!(event as { originalEvent?: unknown }).originalEvent) return;
+      setOfferArea(false);
+      latest.current.onUserGesture?.();
+    });
+    map.on('moveend', (event) => {
+      const user = Boolean((event as { originalEvent?: unknown }).originalEvent);
+      if (!user && !controlMove.current) return;
+      controlMove.current = false;
+      evaluateOffer();
+    });
+    // Tocar una zona vacía (ni pin, ni grupo, ni el marcador del usuario)
+    map.on('click', (event) => {
+      const target = event.originalEvent.target as HTMLElement | null;
+      if (target?.closest('.map-pin-host, .maplibregl-marker')) return;
+      if (map.queryRenderedFeatures(event.point, { layers: ['clusters', 'points'] }).length > 0) {
+        return;
+      }
+      latest.current.onEmptyTap?.();
+    });
     map.on('click', 'points', (event) => {
       const id = event.features?.[0]?.properties['id'];
       if (typeof id === 'string') latest.current.onSelect(id);
@@ -261,7 +337,7 @@ export default function MapCanvas(props: MapCanvasProps) {
       setReady(false);
       setPins([]);
     };
-  }, [addDataLayers, updatePins]);
+  }, [addDataLayers, updatePins, evaluateOffer]);
 
   // Cambio de tema: otro estilo; las capas de datos se vuelven a añadir en `style.load`
   const appliedTheme = useRef(theme);
@@ -354,6 +430,12 @@ export default function MapCanvas(props: MapCanvasProps) {
     setPins(pinIds.flatMap((id) => (markers.has(id) ? [{ id, el: markers.get(id)!.el }] : [])));
   }, [pinIds, ready, byId]);
 
+  // Si cambia la zona buscada o los resultados con el botón a la vista, se vuelve a decidir
+  useEffect(() => {
+    if (offerArea) evaluateOffer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando cambia la zona o los resultados
+  }, [props.region, items]);
+
   // Los datos cambian (filtros): se recalculan los pines
   useEffect(() => {
     if (ready) updatePins();
@@ -362,8 +444,14 @@ export default function MapCanvas(props: MapCanvasProps) {
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
+    controlMove.current = true;
     if (delta > 0) map.zoomIn({ duration: reducedMotion() ? 0 : 250 });
     else map.zoomOut({ duration: reducedMotion() ? 0 : 250 });
+  };
+  const searchHere = () => {
+    const view = visibleRect();
+    setOfferArea(false);
+    if (view) props.onSearchArea?.(areaFromView(view));
   };
   const recenter = () => {
     const map = mapRef.current;
@@ -402,6 +490,18 @@ export default function MapCanvas(props: MapCanvasProps) {
           id,
         );
       })}
+      {offerArea && props.onSearchArea && (
+        <button
+          type="button"
+          className="map-search-area"
+          style={{ top: inset.top + 8 }}
+          onClick={searchHere}
+          data-testid="search-area"
+        >
+          <Search width={18} height={18} aria-hidden />
+          Buscar en esta zona
+        </button>
+      )}
       <div className="map-controls" style={{ top: inset.top + 8 }}>
         <button type="button" className="map-btn" aria-label="Acercar" onClick={() => zoomBy(1)}>
           <Plus width={20} height={20} aria-hidden />

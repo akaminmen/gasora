@@ -66,6 +66,9 @@ export function BottomSheet({
   header,
   onHeightChange,
   topReserve,
+  collapsed = false,
+  collapsedLabel = 'Mostrar lista de gasolineras',
+  onExpand,
   children,
 }: {
   snap: SheetSnap;
@@ -77,6 +80,15 @@ export function BottomSheet({
   onHeightChange?: (height: number) => void;
   /** Alto (px) de la franja superior que la hoja expandida deja libre (buscador y chips flotantes) */
   topReserve?: number;
+  /**
+   * Modo exploración: la hoja se repliega a una línea fina (el asa) para dejar el mapa libre. La
+   * lista sigue montada pero oculta. Se vuelve a abrir con `onExpand` (tocar, arrastrar hacia
+   * arriba o Intro/Espacio) y recupera la altura anterior (`snap` no cambia).
+   */
+  collapsed?: boolean;
+  /** Nombre accesible del botón que reabre la hoja, p. ej. «Mostrar lista de gasolineras (12)» */
+  collapsedLabel?: string;
+  onExpand?: () => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -90,6 +102,10 @@ export function BottomSheet({
     pointerId: number;
   } | null>(null);
   const suppressClick = useRef(false);
+  const restoreRef = useRef<HTMLButtonElement>(null);
+  const handleRef = useRef<HTMLButtonElement>(null);
+  const restoreDrag = useRef<{ startY: number; done: boolean } | null>(null);
+  const refocusHandle = useRef(false);
 
   const heights = sheetHeights(containerHeight, topReserve);
   const height = dragHeight ?? heights[snap];
@@ -105,8 +121,32 @@ export function BottomSheet({
   }, []);
 
   useEffect(() => {
-    onHeightChange?.(height);
-  }, [height, onHeightChange]);
+    if (!collapsed) onHeightChange?.(height);
+  }, [height, onHeightChange, collapsed]);
+
+  // Replegada, la hoja mide lo que el asa (44 px + el margen inferior de seguridad del dispositivo)
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!collapsed || !el) return;
+    const report = () => onHeightChange?.(el.offsetHeight);
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [collapsed, onHeightChange]);
+
+  // Al reabrir con el teclado o con un toque, el foco pasa al asa normal (el botón replegado desaparece)
+  useEffect(() => {
+    if (!collapsed && refocusHandle.current) {
+      refocusHandle.current = false;
+      handleRef.current?.focus({ preventScroll: true });
+    }
+  }, [collapsed]);
+
+  const expand = () => {
+    refocusHandle.current = true;
+    onExpand?.();
+  };
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -188,11 +228,43 @@ export function BottomSheet({
       ref={ref}
       className="bottom-sheet"
       data-snap={snap}
+      data-collapsed={collapsed ? 'true' : 'false'}
       data-dragging={dragHeight !== null ? 'true' : 'false'}
       aria-label={label}
-      style={{ height }}
+      style={{ height: collapsed ? 'calc(44px + env(safe-area-inset-bottom, 0px))' : height }}
     >
+      {collapsed && (
+        <button
+          ref={restoreRef}
+          type="button"
+          className="bottom-sheet__restore"
+          aria-expanded="false"
+          aria-label={collapsedLabel}
+          data-testid="sheet-restore"
+          onClick={() => {
+            if (restoreDrag.current?.done) return;
+            expand();
+          }}
+          onPointerDown={(event) => {
+            restoreDrag.current = { startY: event.clientY, done: false };
+          }}
+          onPointerMove={(event) => {
+            const state = restoreDrag.current;
+            if (!state || state.done) return;
+            // Arrastrar el asa hacia arriba reabre la hoja
+            if (state.startY - event.clientY >= DRAG_THRESHOLD_PX) {
+              state.done = true;
+              expand();
+            }
+          }}
+          onPointerUp={() => window.setTimeout(() => (restoreDrag.current = null), 0)}
+          onPointerCancel={() => (restoreDrag.current = null)}
+        >
+          <span className="bottom-sheet__line" aria-hidden="true" />
+        </button>
+      )}
       <div
+        hidden={collapsed}
         className="bottom-sheet__drag"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -200,6 +272,7 @@ export function BottomSheet({
         onPointerCancel={finish}
       >
         <button
+          ref={handleRef}
           type="button"
           className="bottom-sheet__handle"
           aria-label={`Cambiar la altura de la hoja (ahora ${SNAP_LABELS[snap]})`}
@@ -214,7 +287,11 @@ export function BottomSheet({
         </button>
         {header}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto" data-testid="sheet-content">
+      <div
+        hidden={collapsed}
+        className="min-h-0 flex-1 overflow-y-auto"
+        data-testid="sheet-content"
+      >
         {children}
       </div>
     </section>

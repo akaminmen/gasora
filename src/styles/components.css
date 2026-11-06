@@ -420,6 +420,42 @@
     transition: none;
   }
 }
+/*
+ * Modo exploración: replegada, la hoja es solo el asa. Lo único visible es una línea fina; la zona
+ * táctil mide 44 px de alto (más el margen de seguridad inferior del dispositivo) y el resto de la
+ * franja deja pasar los gestos al mapa.
+ */
+.bottom-sheet[data-collapsed='true'] {
+  overflow: visible;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+.bottom-sheet__restore {
+  position: absolute;
+  bottom: env(safe-area-inset-bottom, 0px);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: min(100%, 160px);
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+  transform: translateX(-50%);
+}
+.bottom-sheet__line {
+  width: 56px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px rgb(13 27 42 / 0.45),
+    0 2px 6px rgb(13 27 42 / 0.3);
+}
 /* El asa y la cabecera arrastran la hoja: el navegador no debe interpretar el gesto como scroll. */
 .bottom-sheet__drag {
   flex: none;
@@ -552,6 +588,30 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.map-search-area {
+  position: absolute;
+  left: 50%;
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  /* Deja libres los botones del mapa de la derecha (44 px + 12 px de margen + hueco) */
+  max-width: calc(100% - 136px);
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand-link);
+  box-shadow: var(--shadow-sm);
+  font: 700 0.875rem/1.2 var(--font-sans);
+  text-align: center;
+  transform: translateX(-50%);
+}
+.map-search-area:hover {
+  background: var(--brand-50);
 }
 .map-btn {
   display: inline-grid;

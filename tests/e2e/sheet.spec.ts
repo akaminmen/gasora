@@ -302,7 +302,7 @@ test.describe('no bloquea los gestos del mapa', () => {
     for (const hit of result.hits) expect(String(hit)).toMatch(/maplibregl-canvas|maplibregl-map/);
   });
 
-  test('arrastrar el mapa en la zona libre lo desplaza; la hoja no cambia de altura', async ({
+  test('arrastrar el mapa en la zona libre lo desplaza; la hoja se repliega y conserva su altura anterior', async ({
     page,
   }) => {
     await open(page);
@@ -318,7 +318,9 @@ test.describe('no bloquea los gestos del mapa', () => {
     await page.mouse.move(120, 380, { steps: 8 });
     await page.mouse.up();
     await expect.poll(() => map(page).getAttribute('data-center')).not.toBe(before);
+    // Modo exploración: la hoja se repliega, pero su altura (compacta) se recuerda
     expect(await snapOf(page)).toBe('compact');
+    await expect(sheet(page)).toHaveAttribute('data-collapsed', 'true');
     expect(sheetBefore).toBeGreaterThan(0);
   });
 
