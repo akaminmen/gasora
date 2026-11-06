@@ -2,8 +2,19 @@ name: Ingesta y despliegue
 
 on:
   schedule:
-    # Cada 30 min. GitHub puede retrasar los cron: la fecha de los datos se muestra siempre.
-    - cron: '*/30 * * * *'
+    # Nunca en los minutos 0 y 30: GitHub avisa de que el comienzo de cada hora es de alta carga y de
+    # que, con mucha carga, se pueden descartar ejecuciones en cola. Base: cada media hora, en los
+    # minutos 17 y 47. La fecha de los datos que muestra la web es siempre la de la consulta.
+    - cron: '17,47 * * * *'
+    # Más densa alrededor de la medianoche de Madrid (por si las gasolineras cambian ahí sus
+    # precios; sin verificar): cada 10 minutos, de 23:33 a 01:23 hora de Madrid. Con `timezone`
+    # el horario de verano e invierno lo resuelve GitHub.
+    - cron: '33,43,53 23 * * *'
+      timezone: 'Europe/Madrid'
+    - cron: '3,13,23,33,43,53 0 * * *'
+      timezone: 'Europe/Madrid'
+    - cron: '3,13,23 1 * * *'
+      timezone: 'Europe/Madrid'
   push:
     branches: [main]
   workflow_dispatch:
