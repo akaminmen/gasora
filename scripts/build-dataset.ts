@@ -72,6 +72,7 @@ export function buildDataset(
     p: Object.fromEntries(stations.map((s) => [s.id, result.prices[s.id] ?? []])),
   };
 
+  const searchIndex = buildSearchIndex(normalized);
   const dataset = validateDataset({
     meta: {
       schemaVersion: SCHEMA_VERSION,
@@ -81,11 +82,16 @@ export function buildDataset(
       // Solo los precios: `updatedAt` cambia en cada consulta aunque los precios no cambien.
       priceHash: sha(JSON.stringify(prices.p), 12),
       stationsFile: `stations.${sha(JSON.stringify(stationsFile), 10)}.json`,
+      // Estaciones + precios + índice de búsqueda, sin fechas (ni `sourceDate` ni `updatedAt`)
+      contentHash: sha(
+        JSON.stringify({ stations: stationsFile, prices: prices.p, searchIndex }),
+        16,
+      ),
       demo: options.demo,
     },
     stations: stationsFile,
     prices,
-    searchIndex: buildSearchIndex(normalized),
+    searchIndex,
   });
 
   const dropsByReason: IngestReport['dropsByReason'] = {};

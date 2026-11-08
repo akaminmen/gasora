@@ -117,6 +117,11 @@ export function AboutPage() {
             </b>
             .
           </p>
+          <p className="mt-2" data-testid="about-date-note">
+            Es la fecha de la consulta con la que se publicaron estos datos. Cuando una consulta no
+            trae cambios, no se vuelve a publicar: la fecha puede ser anterior a la última
+            comprobación.
+          </p>
         </InfoCard>
 
         <InstallCard />

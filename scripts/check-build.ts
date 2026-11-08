@@ -71,6 +71,16 @@ if (!/gasora-brand-logos-v1/.test(sw)) {
   problems.push('dist/sw.js no tiene la caché de ejecución de los logos de marca');
 }
 
+const version = JSON.parse(
+  await readFile(join(dist, 'version.json'), 'utf8').catch(() => '{}'),
+) as {
+  sha?: string;
+};
+if (typeof version.sha !== 'string' || version.sha.length < 5) {
+  problems.push(
+    'Falta dist/version.json con el commit publicado (lo usa la ingesta para no omitir código nuevo)',
+  );
+}
 const licenses = await readFile(join(dist, 'licencias-de-terceros.txt'), 'utf8').catch(() => '');
 if (!/maplibre-gl/.test(licenses) || licenses.length < 10_000) {
   problems.push('Falta dist/licencias-de-terceros.txt o está incompleto (npm run licenses)');

@@ -15,6 +15,13 @@ export const metaSchema = z.object({
   sourceDate: iso,
   stationCount: z.number().int().nonnegative(),
   priceHash: z.string().min(1),
+  /**
+   * Huella de todo lo que ve la persona usuaria: estaciones (altas, bajas, direcciones, marcas,
+   * horarios), precios e índice de búsqueda. NO incluye ninguna fecha: no cambia porque cambie la hora
+   * de la consulta. La usan la ingesta (para no desplegar datos idénticos) y el aviso «Hay precios
+   * nuevos». Opcional: los datos publicados antes de este campo no la tienen.
+   */
+  contentHash: z.string().min(1).optional(),
   stationsFile: z.string().regex(/^stations\.[0-9a-f]+\.json$/),
   /** true si los datos vienen de `fixtures/` (rótulo «Datos de demostración»). */
   demo: z.boolean(),

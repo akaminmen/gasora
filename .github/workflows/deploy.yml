@@ -4,7 +4,7 @@ on:
   schedule:
     # Nunca en los minutos 0 y 30: GitHub avisa de que el comienzo de cada hora es de alta carga y de
     # que, con mucha carga, se pueden descartar ejecuciones en cola. Base: cada media hora, en los
-    # minutos 17 y 47. La fecha de los datos que muestra la web es siempre la de la consulta.
+    # minutos 17 y 47. Si los datos no han cambiado, la ejecución se omite (ver `compare:published`).
     - cron: '17,47 * * * *'
     # Más densa alrededor de la medianoche de Madrid (por si las gasolineras cambian ahí sus
     # precios; sin verificar): cada 10 minutos, de 23:33 a 01:23 hora de Madrid. Con `timezone`
@@ -18,6 +18,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Compilar y desplegar aunque los datos publicados ya sean iguales'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +37,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      # «false» solo si la comprobación dice que no hay nada nuevo; en cualquier otro caso, se despliega
+      deploy: ${{ steps.compare.outputs.deploy != 'false' }}
     env:
       GASORA_BASE: /${{ github.event.repository.name }}/
       # Último dato publicado: respaldo si la API del Ministerio falla (sección 5.3 del plan).
@@ -46,16 +54,31 @@ jobs:
       # Si no hay datos válidos ni respaldo, falla aquí y la web sigue con el último despliegue bueno.
       - run: npm run ingest
       - run: npm run check:data
-      - run: npm test
-      - run: npm run build
-      - run: npm run check:build
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # Compara lo ingerido con lo que sirve GitHub Pages. Se omite compilar y desplegar solo en
+      # schedule o workflow_dispatch (sin force) con datos y código publicados iguales. Falla abierto:
+      # si esta comprobación se rompe o no puede leer lo publicado, se despliega.
+      - id: compare
+        continue-on-error: true
+        env:
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          FORCE: ${{ inputs.force }}
+        run: npm run compare:published
+      - if: steps.compare.outputs.deploy != 'false'
+        run: npm test
+      - if: steps.compare.outputs.deploy != 'false'
+        run: npm run build
+      - if: steps.compare.outputs.deploy != 'false'
+        run: npm run check:build
+      - if: steps.compare.outputs.deploy != 'false'
+        uses: actions/configure-pages@v6
+      - if: steps.compare.outputs.deploy != 'false'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
   deploy:
     needs: build
+    if: needs.build.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

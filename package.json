@@ -25,6 +25,7 @@
     "icons": "tsx scripts/make-icons.ts",
     "hero-map": "tsx scripts/make-hero-map.ts",
     "brands:check": "tsx scripts/check-brands.ts",
+    "compare:published": "tsx scripts/compare-published.ts",
     "licenses": "tsx scripts/licenses.ts",
     "screenshots": "tsx scripts/make-screenshots.ts",
     "test": "vitest run",

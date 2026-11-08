@@ -12,11 +12,26 @@ interface Workflow {
   on: {
     push?: { branches?: string[] };
     schedule?: { cron: string; timezone?: string }[];
-    workflow_dispatch?: unknown;
+    workflow_dispatch?: { inputs?: Record<string, { type?: string; default?: unknown }> };
   };
   concurrency?: { group: string; 'cancel-in-progress'?: boolean };
   permissions?: Record<string, string>;
-  jobs: Record<string, { needs?: string; steps?: { run?: string; uses?: string }[] }>;
+  jobs: Record<
+    string,
+    {
+      needs?: string;
+      if?: string;
+      outputs?: Record<string, string>;
+      steps?: {
+        id?: string;
+        if?: string;
+        run?: string;
+        uses?: string;
+        env?: Record<string, string>;
+        'continue-on-error'?: boolean;
+      }[];
+    }
+  >;
 }
 
 /** Instantes (minutos del día) de un cron de la forma «m1,m2 h * * *» o «m1,m2 * * * *». */
@@ -87,6 +102,52 @@ describe('deploy.yml', () => {
 
   it('los permisos son los mínimos para Pages', () => {
     expect(deploy.permissions).toEqual({ contents: 'read', pages: 'write', 'id-token': 'write' });
+  });
+
+  it('tiene la entrada manual force (booleana, falsa por defecto)', () => {
+    const force = deploy.on.workflow_dispatch?.inputs?.['force'];
+    expect(force?.type).toBe('boolean');
+    expect(force?.default).toBe(false);
+  });
+
+  describe('omitir el despliegue si los datos no cambian', () => {
+    const build = deploy.jobs['build']!;
+    const steps = build.steps ?? [];
+    const compare = steps.find((step) => step.id === 'compare');
+
+    it('compara con lo publicado justo después de ingerir y validar los datos', () => {
+      const index = (text: string) => steps.findIndex((step) => (step.run ?? '').includes(text));
+      expect(compare?.run).toBe('npm run compare:published');
+      expect(steps.indexOf(compare!)).toBeGreaterThan(index('npm run ingest'));
+      expect(steps.indexOf(compare!)).toBeGreaterThan(index('npm run check:data'));
+    });
+
+    it('falla abierto: si la comparación se rompe, se despliega', () => {
+      expect(compare?.['continue-on-error']).toBe(true);
+      expect(build.outputs?.['deploy']).toContain("!= 'false'");
+      expect(deploy.jobs['deploy']?.if).toBe("needs.build.outputs.deploy == 'true'");
+    });
+
+    it('le pasa la dirección pública y la entrada force', () => {
+      expect(compare?.env?.['SITE_URL']).toContain('github.io');
+      expect(compare?.env?.['FORCE']).toBe('${{ inputs.force }}');
+    });
+
+    it('solo se omiten las pruebas, la compilación y la subida del artefacto', () => {
+      const skipped = steps.filter((step) => step.if === "steps.compare.outputs.deploy != 'false'");
+      const names = skipped.map((step) => step.run ?? step.uses ?? '');
+      expect(names).toEqual([
+        'npm test',
+        'npm run build',
+        'npm run check:build',
+        'actions/configure-pages@v6',
+        'actions/upload-pages-artifact@v5',
+      ]);
+      // Lo demás (instalación, ingesta, comprobación de datos) se ejecuta siempre
+      for (const text of ['npm ci', 'npm run ingest', 'npm run check:data']) {
+        expect(steps.find((step) => step.run === text)?.if).toBeUndefined();
+      }
+    });
   });
 
   it('la ingesta va antes de la compilación y del despliegue', () => {

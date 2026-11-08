@@ -127,6 +127,13 @@ function seoFiles(): Plugin {
         fileName: 'robots.txt',
         source: ['User-agent: *', 'Allow: /', '', `Sitemap: ${site}sitemap.xml`, ''].join('\n'),
       });
+      // Commit del código publicado: la ingesta lo compara para no omitir un despliegue de código
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: `${JSON.stringify({ sha: process.env['GITHUB_SHA'] ?? 'local', version })}
+`,
+      });
       const urls = PUBLIC_PAGES.map((page) => `  <url><loc>${site}${page}</loc></url>`);
       this.emitFile({
         type: 'asset',
