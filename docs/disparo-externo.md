@@ -1,6 +1,6 @@
 # Disparo externo de la ingesta
 
-Cómo lanzar el workflow «Ingesta y despliegue» (`deploy.yml`) desde fuera de GitHub, para no depender solo del `cron` de GitHub Actions. Este documento no cambia nada por sí solo: es una guía para tres opciones. Se pueden usar a la vez que el `cron` del workflow; no se pisan (ver «Solapes»).
+Cómo lanzar el workflow «Ingesta y despliegue» (`deploy.yml`) desde fuera de GitHub, para no depender solo del `cron` de GitHub Actions. Recoge lo que se montó (un Cloudflare Worker, fuera del repositorio) y otras dos opciones por si hiciera falta. Se usa a la vez que el `cron` del workflow, que queda como respaldo; no se pisan (ver «Solapes y ejecuciones en cola»).
 
 ## Por qué
 
@@ -101,77 +101,80 @@ MAILTO=""
 
 Los minutos 13 y 43 de las horas 23, 0 y 1 coinciden con la ventana densa: sobra una de las dos llamadas, sin consecuencias (ver «Solapes»). Para rotar el registro, `logrotate` o `truncate -s 0` mensual.
 
-## Opción 2: Cloudflare Worker con Cron Trigger
+## Opción 2 (la que está montada): Cloudflare Worker con Cron Triggers
 
-Un Worker gratuito que se ejecuta con un único Cron Trigger y decide si llamar a GitHub según la hora de Madrid. Los Cron Triggers de Cloudflare van en UTC, por eso la decisión (y el horario de verano) se resuelve dentro del Worker.
+Un Worker de Cloudflare, **fuera de este repositorio** (su código, su cuenta y su dirección `workers.dev` no se publican aquí), lanza «Ingesta y despliegue» con `workflow_dispatch` sobre `main`.
 
-1. Instala Wrangler (`npm create cloudflare@latest gasora-disparo`, plantilla «Worker only», TypeScript) **fuera de este repositorio**.
-2. `wrangler.toml`:
+**Dos relojes** (Cron Triggers de Cloudflare, siempre en UTC):
 
-```toml
-name = "gasora-disparo"
-main = "src/index.ts"
-compatibility_date = "2026-01-01"
+| Reloj               | Cuándo (UTC)                     | Para qué                                                                                                                                    |
+| ------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `*/5 21-23,0 * * *` | cada 5 minutos de 21:00 a 00:55  | Cubre la medianoche de Madrid en invierno (22:00–01:55 locales) y en verano (23:00–02:55 locales) sin tener que cambiar nada con el horario |
+| `*/15 1-20 * * *`   | cada 15 minutos de 01:00 a 20:45 | El resto del día                                                                                                                            |
 
-[triggers]
-# Cada 10 minutos, en los minutos 3, 13, 23, 33, 43 y 53 (UTC). El Worker decide si llama.
-crons = ["3-59/10 * * * *"]
-```
+Eso son 48 llamadas en la franja de 5 minutos más 80 en la de 15 = **128 disparos al día**. Con el comportamiento de «Ingesta y despliegue» (compara con lo publicado y omite compilar y desplegar si los datos son iguales), casi todos terminan en verde sin desplegar nada.
 
-3. Guarda el token como secreto (no va en `wrangler.toml`): `npx wrangler secret put GITHUB_TOKEN`.
-4. `src/index.ts`:
+**Qué hace el Worker** (esquema; el código real no está en el repositorio):
 
 ```ts
 export interface Env {
-  GITHUB_TOKEN: string;
+  GITHUB_TOKEN: string; // secreto del Worker, nunca en el código ni en wrangler.toml
 }
 
 const API_URL =
   'https://api.github.com/repos/akaminmen/gasora/actions/workflows/deploy.yml/dispatches';
 
-/** Hora y minuto en Madrid (resuelve horario de verano e invierno). */
-function madrid(date: Date): { minutes: number; minute: number } {
-  const parts = new Intl.DateTimeFormat('es-ES', {
-    timeZone: 'Europe/Madrid',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-  const hour = Number(parts.find((p) => p.type === 'hour')?.value);
-  const minute = Number(parts.find((p) => p.type === 'minute')?.value);
-  return { minutes: hour * 60 + minute, minute };
-}
-
-/** Entre las 23:30 y la 01:30 de Madrid, en cada paso; el resto del día, solo en los minutos 13 y 43. */
-function shouldDispatch(date: Date): boolean {
-  const { minutes, minute } = madrid(date);
-  const midnightWindow = minutes >= 23 * 60 + 30 || minutes <= 60 + 30;
-  return midnightWindow || minute === 13 || minute === 43;
+async function dispatch(token: string): Promise<void> {
+  let lastError = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2000 * 2 ** (attempt - 1)));
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'gasora-disparo', // GitHub exige un User-Agent
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      });
+      if (response.status === 204 || response.status === 200) return;
+      lastError = `HTTP ${response.status}`;
+      // Solo se reintenta lo que puede arreglarse solo: 429 y errores del servidor
+      if (response.status !== 429 && response.status < 500) break;
+    } catch (error) {
+      lastError = String(error); // error de red: se reintenta
+    }
+  }
+  // Queda en los registros del Worker (wrangler tail / panel) y en sus métricas de errores
+  throw new Error(`No se pudo lanzar la ingesta: ${lastError}`);
 }
 
 export default {
-  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    if (!shouldDispatch(new Date(controller.scheduledTime))) return;
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        // GitHub exige un User-Agent en la API
-        'User-Agent': 'gasora-disparo',
-      },
-      body: JSON.stringify({ ref: 'main' }),
-    });
-    if (response.status !== 204 && response.status !== 200) {
-      // Queda en los registros del Worker (wrangler tail) y en la pestaña de métricas
-      throw new Error(`GitHub respondió ${response.status}: ${await response.text()}`);
-    }
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    await dispatch(env.GITHUB_TOKEN);
   },
 };
 ```
 
-5. `npx wrangler deploy`. Para probar sin esperar: `npx wrangler dev --test-scheduled` y `curl "http://localhost:8787/__scheduled?cron=3-59/10+*+*+*+*"`. Revisa en el panel de Cloudflare los límites de tu plan para Cron Triggers y peticiones.
+- **Reintentos:** hasta 3 intentos con espera de 2 s y 4 s ante errores de red, `429` y `5xx`. Un `401`, `403`, `404` o `422` no se reintentan (no se arreglan solos: ver «Si falla»).
+- **Token:** de grano fino, limitado a `akaminmen/gasora`, con el permiso **Actions: Read and write** y fecha de caducidad (ver «El token de GitHub»). Se guarda como secreto del Worker (`npx wrangler secret put GITHUB_TOKEN`, o el panel de Cloudflare: Worker → Settings → Variables and Secrets → Secret). No va en el repositorio, en `wrangler.toml` ni en los registros.
+- **Triggers** en `wrangler.toml`:
+
+```toml
+[triggers]
+crons = ["*/5 21-23,0 * * *", "*/15 1-20 * * *"]
+```
+
+### Cómo renovar el token cuando caduque
+
+GitHub avisa por correo antes de que caduque un token personal. Apunta además la fecha en tu calendario (una semana antes). Sin cortes:
+
+1. GitHub → Settings → Developer settings → Fine-grained tokens → **Generate new token** con los mismos ajustes (solo `akaminmen/gasora`, **Actions: Read and write**, nueva caducidad).
+2. Sustituye el secreto del Worker: `npx wrangler secret put GITHUB_TOKEN` (pega el valor nuevo) o el panel de Cloudflare. El Worker usa el valor nuevo en la siguiente ejecución, sin volver a desplegar.
+3. Comprueba que funciona (ver «Operación»).
+4. Borra el token viejo en GitHub (**Delete**).
 
 ## Opción 3: servicio externo de tareas programadas
 
@@ -191,10 +194,36 @@ Servicios web gratuitos que lanzan una petición HTTP periódica (por ejemplo cr
 - Solo hay **una ejecución en curso** y **una en espera**. Si llega otra mientras una espera, **la que esperaba se cancela** (queda la más reciente). El despliegue en curso nunca se cancela.
 - No se pierde nada importante: cualquier ejecución nueva (programada, `push` o disparo externo) hace checkout de la **última** versión de `main`, descarga los datos más recientes y despliega todo. La que se cancela habría hecho lo mismo, con datos o código más viejos.
 - Por tanto, los disparos duplicados (el `cron` de GitHub y los externos a la vez) son inofensivos: como mucho una ejecución se cancela en la cola.
+- **Sin cambios, no se despliega.** Las ejecuciones `schedule` y `workflow_dispatch` comparan lo ingerido con lo publicado y, si es igual (y el código publicado es el de la ejecución), omiten las pruebas, la compilación y el despliegue: terminan en verde con el resumen «sin cambios, no se despliega». Los `push`, una entrada manual `force=true` y cualquier duda (no se pudo leer lo publicado) siempre despliegan. Para forzar un despliegue a mano: pestaña Actions → «Ingesta y despliegue» → Run workflow → marca `force`; o por API, con `{"ref":"main","inputs":{"force":"true"}}`.
 
-## Qué comprobar tras activarlo
+## Operación: saber si el disparador funciona y qué hacer si falla
 
-- En la pestaña Actions, ejecuciones con evento `workflow_dispatch` a las horas esperadas.
-- Que los datos se refrescan: la fecha «consultados el …» de la web avanza.
-- Que el token no caduca sin avisar: apunta la fecha de caducidad.
-- Sobre el límite de 60 días: no está verificado si una ejecución lanzada con `workflow_dispatch` cuenta como actividad del repositorio. Con un disparo externo, el `cron` de GitHub no es imprescindible: aunque se desactivara, el disparo seguiría funcionando.
+**Cómo saber que funciona**
+
+- Pestaña Actions → «Ingesta y despliegue»: ejecuciones con evento `workflow_dispatch` cada 15 minutos (cada 5 de 21:00 a 00:55 UTC), la mayoría con el resumen «sin cambios, no se despliega».
+- Por línea de órdenes (solo lectura), las ejecuciones de las últimas 24 h por evento:
+
+```powershell
+gh api "repos/akaminmen/gasora/actions/workflows/deploy.yml/runs?per_page=100&event=workflow_dispatch" `
+  --jq '.workflow_runs[] | [.created_at, .conclusion] | @tsv' | Select-Object -First 140
+```
+
+Esperado: unas 128 en 24 h, con `success` y sin huecos de más de 15 minutos (de más de 5 en la franja nocturna).
+
+- La web sigue al día: abre `https://akaminmen.github.io/gasora/data/meta.json` y comprueba que `sourceDate` no es de hace horas cuando se sabe que los precios han cambiado. Recuerda que, si no hay cambios, la fecha no avanza (es la de la última publicación).
+- En el panel de Cloudflare: Worker → Metrics (peticiones y errores) y Logs.
+
+**Si falla**
+
+| Síntoma                                                                      | Causa probable                                                                                      | Qué hacer                                                                           |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Deja de haber ejecuciones `workflow_dispatch`; el Worker registra `HTTP 401` | Token caducado o revocado                                                                           | Renovar el token (arriba)                                                           |
+| `HTTP 403` o `404`                                                           | Al token le falta el permiso Actions (escritura) o ya no tiene acceso al repositorio                | Revisar los permisos del token; recrearlo                                           |
+| `HTTP 422`                                                                   | El workflow no tiene `workflow_dispatch`, el nombre del archivo cambió o la rama no existe          | Comprobar `deploy.yml` y la rama `main`                                             |
+| Ejecuciones en rojo                                                          | Falla la ingesta (Ministerio caído), los datos no son válidos o una prueba                          | Abrir la ejecución; con datos inválidos la web sigue con el último despliegue bueno |
+| El Worker no se ejecuta                                                      | Cron Triggers borrados o Worker deshabilitado, límite del plan de Cloudflare                        | Revisar `wrangler.toml` y el panel; volver a desplegar (`npx wrangler deploy`)      |
+| Todo parece bien pero los precios no avanzan                                 | El Ministerio no ha publicado cambios, o la caché de Pages muestra una respuesta vieja unos minutos | Esperar; comparar con la API del Ministerio                                         |
+
+Mientras el disparador esté caído, el `cron` de `deploy.yml` sigue funcionando como respaldo (con los retrasos y huecos habituales de GitHub). Para probar a mano: la llamada de «La llamada a la API» debe devolver `204`.
+
+**Sobre el límite de 60 días de GitHub.** La documentación actual dice que, en un repositorio público, los workflows programados se desactivan automáticamente cuando no ha habido actividad en el repositorio durante 60 días. No define «actividad», no dice si una ejecución (programada o por `workflow_dispatch`) cuenta y no habla de ningún aviso previo. Re-habilitar: pestaña Actions → el workflow → «Enable workflow», o `gh workflow enable deploy.yml`. Importa menos mientras el disparador externo funcione (no depende del `cron`), pero conviene saberlo: ver la propuesta en `docs/STATUS.md`.
