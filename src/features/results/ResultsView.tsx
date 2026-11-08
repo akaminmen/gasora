@@ -422,7 +422,7 @@ export function ResultsView({ place }: { place: Place }) {
     return (
       <section
         aria-label="Resultados"
-        className="relative h-[calc(100dvh-4rem-72px)] overflow-hidden"
+        className="relative h-[calc(100dvh-4rem-72px-var(--top-strips,0px))] overflow-hidden"
         data-testid="results-mobile"
       >
         <h1 id="results-title" data-testid="results-title" className="sr-only">
@@ -496,7 +496,7 @@ export function ResultsView({ place }: { place: Place }) {
   return (
     <section
       aria-label="Resultados"
-      className="flex h-[calc(100dvh-4rem)] min-h-[560px] flex-col"
+      className="flex h-[calc(100dvh-4rem-var(--top-strips,0px))] min-h-[560px] flex-col"
       data-testid="results-desktop"
     >
       <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2 lg:px-6">

@@ -99,13 +99,30 @@ export async function loadData(hint: string | undefined = readStationsHint()): P
   };
 }
 
-/** Descarga solo meta y precios, que son lo único que cambia entre despliegues. */
-export async function loadFreshPrices(): Promise<{ meta: Meta; prices: PricesFile }> {
-  const [meta, prices] = await Promise.all([
-    getJson('meta.json', 'no-cache', false).then((r) => metaSchema.parse(r.json)),
+/**
+ * Solo `meta.json` (≈ 300 bytes), con revalidación (`no-cache`: el navegador pregunta al servidor con
+ * `If-None-Match`/ETag y no se queda con la copia de hasta 10 minutos de GitHub Pages). Sin copia
+ * local de respaldo: si no hay red, lanza el error.
+ */
+export async function loadLatestMeta(): Promise<Meta> {
+  const { json } = await getJson('meta.json', 'no-cache', false);
+  return metaSchema.parse(json);
+}
+
+/**
+ * Descarga en segundo plano lo necesario para pasar de los datos actuales a los de `latest`: los
+ * precios siempre y las estaciones solo si cambió su fichero. No toca nada de la pantalla.
+ */
+export async function loadUpdate(latest: Meta, current: GasoraData): Promise<GasoraData> {
+  const [prices, stations] = await Promise.all([
     getJson('prices.json', 'no-cache', false).then((r) => parsePricesLight(r.json)),
+    latest.stationsFile === current.meta.stationsFile
+      ? Promise.resolve(current.stations)
+      : getJson(latest.stationsFile, 'default', false).then((r) => parseStationsLight(r.json)),
   ]);
-  return { meta, prices };
+  // meta.json y prices.json se publican juntos: si no casan, se está publicando justo ahora
+  if (prices.updatedAt !== latest.sourceDate) throw new Error('Datos a medio publicar');
+  return { meta: latest, stations, prices, fromCache: false };
 }
 
 /** El índice de búsqueda se carga bajo demanda (no forma parte de la carga inicial). */

@@ -1,6 +1,7 @@
 import { Calculator, Heart, House, Info } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { DataUpdateStrip } from '../components/DataUpdateStrip';
 import { PwaBanners } from '../components/PwaBanners';
 import { Logo } from '../components/ui/Logo';
 import { SearchBox } from '../features/search/SearchBox';
@@ -51,6 +52,23 @@ export function AppShell() {
   const { pathname } = useLocation();
   const isHome = pathname === '/';
   const mainRef = useRef<HTMLElement>(null);
+  const stripsRef = useRef<HTMLDivElement>(null);
+
+  // Alto de las franjas bajo la cabecera («Sin conexión», «Hay precios nuevos»): las pantallas de alto
+  // fijo (resultados) lo descuentan para no desbordar
+  useLayoutEffect(() => {
+    const el = stripsRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty('--top-strips', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--top-strips');
+    };
+  }, []);
   const firstRender = useRef(true);
 
   // Al cambiar de pantalla el foco pasa al contenido (lectores de pantalla y teclado)
@@ -70,7 +88,7 @@ export function AppShell() {
       >
         Saltar al contenido
       </a>
-      <header className="sticky top-0 z-30 flex h-16 flex-none items-center gap-4 border-b border-line bg-surface px-4 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-16 flex-none items-center gap-2 border-b border-line bg-surface px-3 sm:gap-4 sm:px-4 lg:px-6">
         <Link
           to="/"
           aria-label="Gasora, ir al inicio"
@@ -111,7 +129,10 @@ export function AppShell() {
         </div>
       </header>
 
-      <PwaBanners />
+      <div ref={stripsRef} data-testid="top-strips">
+        <PwaBanners />
+        <DataUpdateStrip />
+      </div>
       <main id="contenido" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
