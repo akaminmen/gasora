@@ -35,7 +35,13 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        // En los equipos sin GPU (la CI de Linux) Firefox desactiva WebGL: se fuerza el de software
+        launchOptions: {
+          firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false },
+        },
+      },
       testMatch: /(layout|a11y|keyboard)\.spec\.ts/,
     },
     {

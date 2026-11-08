@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
 import { someStation, sellers } from './data';
 import { expect, test } from './fixtures';
+import { waitForMap } from './map-support';
 
 /**
  * Tests de layout (sección 12 del plan). El aspecto no se revisa a ojo: se verifica
@@ -378,7 +379,7 @@ for (const theme of THEMES) {
       );
       expect(overflow, 'desbordamiento horizontal').toBeLessThanOrEqual(0);
       // El mapa tiene tamaño real (el lienzo no se queda en el 300 px por defecto)
-      await expect(page.getByTestId('map')).toHaveAttribute('data-ready', 'true');
+      await waitForMap(page);
       const mapBox = await page.getByTestId('map').boundingBox();
       expect(mapBox?.width, 'ancho del mapa').toBeGreaterThan(250);
       expect(mapBox?.height, 'alto del mapa').toBeGreaterThan(200);
@@ -414,7 +415,7 @@ for (const width of [390, 768, 1440]) {
     const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
     await box.fill('malag');
     await box.press('Enter');
-    await expect(page.getByTestId('map')).toHaveAttribute('data-ready', 'true');
+    await waitForMap(page);
     await page.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });

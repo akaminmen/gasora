@@ -333,6 +333,10 @@ test.describe('posición del usuario', () => {
     await page.mouse.down();
     await page.mouse.move(box.x + 100, box.y + 100, { steps: 6 });
     await page.mouse.up();
+    // El arrastre tarda en reflejarse en un equipo lento: se espera a que el centro se haya movido
+    await expect
+      .poll(async () => Math.abs((await view(page)).lat - MALAGA.latitude), { timeout: 5000 })
+      .toBeGreaterThan(0.0005);
     const moved = await view(page);
     await page.getByRole('button', { name: 'Centrar en mi ubicación' }).click();
     await expect

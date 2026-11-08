@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { BIG_CP } from './data';
 import { expect, test } from './fixtures';
+import { waitForMap } from './map-support';
 
 /**
  * Layout y accesibilidad de los bloques A y B (hoja replegada y «Buscar en esta zona») en Chromium,
@@ -9,7 +10,6 @@ import { expect, test } from './fixtures';
  * atribución ni los controles, en claro y oscuro, con el texto al 200 % y con axe.
  */
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-const map = (page: Page) => page.getByTestId('map');
 
 async function expectNoViolations(page: Page) {
   await page.evaluate(() => document.fonts.ready);
@@ -31,7 +31,7 @@ async function open(page: Page, theme: 'light' | 'dark', width: number, height: 
   const box = page.getByRole('combobox', { name: /Buscar por provincia/ }).first();
   await box.fill(BIG_CP);
   await box.press('Enter');
-  await expect(map(page)).toHaveAttribute('data-ready', 'true');
+  await waitForMap(page);
   await expect(page.getByTestId('station-card').first()).toBeVisible();
   await page.waitForTimeout(900);
 }

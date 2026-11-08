@@ -173,7 +173,10 @@ test.describe('la línea (asa) replegada', () => {
     const line = (await page.locator('.bottom-sheet__line').boundingBox())!;
     expect(line.height).toBeLessThanOrEqual(6);
     // La hoja ocupa solo el asa (44 px más el margen de seguridad, 0 en este navegador)
-    expect((await sheet(page).boundingBox())!.height).toBeLessThanOrEqual(46);
+    // (la hoja se anima hasta la línea: se espera a que termine; en un equipo lento tarda más)
+    await expect
+      .poll(async () => (await sheet(page).boundingBox())!.height, { timeout: 5000 })
+      .toBeLessThanOrEqual(46);
     // El margen de seguridad del dispositivo está en la hoja y en el botón
     const usesSafeArea = await page.evaluate(() =>
       [...document.styleSheets].some((s) =>
