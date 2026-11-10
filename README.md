@@ -4,7 +4,7 @@
 
 Gasora es una web app (PWA) gratuita y sin registro para conductores de España. Responde a una sola pregunta, «¿dónde repostar más barato cerca de mí ahora mismo?», con los datos abiertos de precios de carburantes del Ministerio para la Transición Ecológica y el Reto Demográfico. Es un proyecto personal y de portfolio: sin servidor propio, sin cuentas, sin cookies ni analítica, y con un coste de alojamiento de 0 €.
 
-**Demo:** <https://akaminmen.github.io/gasora/>
+**Web:** <https://gasora.es/> (alojada en GitHub Pages con dominio propio)
 
 ![Inicio en escritorio, tema claro](docs/screenshots/inicio-escritorio-light.png)
 
@@ -92,6 +92,7 @@ Resumen de los registros de decisiones (ADR) de [`docs/decisions/`](docs/decisio
 | [014](docs/decisions/014-pwa-sin-conexion-teclado-y-rendimiento.md)                             | PWA con actualización que no deja a nadie en una versión vieja, teselas acotadas, teclado y rendimiento.                                                |
 | [015](docs/decisions/015-logos-de-marcas.md)                                                    | Logos de marcas como icono de la estación, con avatar de respaldo.                                                                                      |
 | [016](docs/decisions/016-omitir-despliegue-y-aviso-de-precios-nuevos.md)                        | La ingesta no compila ni despliega si los datos publicados ya son iguales (huella de contenido) y la web avisa «Hay precios nuevos» sin recolocar nada. |
+| [017](docs/decisions/017-dominio-propio-gasora-es.md)                                           | Dominio propio gasora.es: la web vive en la raíz, razones, alternativas y cómo se revierte                                                              |
 
 ## Calidad y métricas
 
@@ -100,7 +101,7 @@ Cómo se verifica: en lugar de «mirar» la interfaz, los tests de Playwright mi
 | Métrica                                                        | Valor                                                                                                                                                                                                                                                |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tests unitarios (Vitest)                                       | 239                                                                                                                                                                                                                                                  |
-| Tests de navegador (Playwright)                                | 947 (21 omitidos: Tab en WebKit y texto al 200 % a ≤ 360 px; ≈ 16 min con `CI=true`): Chromium (todo), Firefox y WebKit (layout, accesibilidad y teclado) y la PWA bajo la subruta `/gasora/`                                                        |
+| Tests de navegador (Playwright)                                | 947 (21 omitidos: Tab en WebKit y texto al 200 % a ≤ 360 px; ≈ 16 min con `CI=true`): Chromium (todo), Firefox y WebKit (layout, accesibilidad y teclado) y la PWA y los enlaces profundos con la base `/`                                           |
 | Lighthouse móvil (Inicio, Favoritos, Calculadora, «Acerca de») | rendimiento 97–100 (Inicio, Favoritos y Calculadora 100); accesibilidad, buenas prácticas y SEO: 100                                                                                                                                                 |
 | Lighthouse móvil (ficha de estación)                           | rendimiento 93–97; accesibilidad, buenas prácticas y SEO: 100                                                                                                                                                                                        |
 | JS inicial                                                     | ≈ 271 KB (≈ 85 KB gzip); el mapa (≈ 1,1 MB, ≈ 294 KB gzip) se carga aparte                                                                                                                                                                           |
@@ -133,6 +134,7 @@ npm run ingest:fixtures   # sin conexión: datos de demostración
 | `npm run brands:check`                                  | Valida los logos de `public/brands/` y lista las marcas sin logo                                                                                                                        |
 | `npm run compare:published`                             | Usada por la ingesta: compara los datos nuevos con los publicados y decide si hay que compilar y desplegar                                                                              |
 | `npm run licenses`                                      | Genera `public/licencias-de-terceros.txt` (se publica con la web) y lista las licencias de las librerías que se distribuyen                                                             |
+| `npm run verify:site`                                   | Solo lectura: descarga https://gasora.es/ (o la dirección que se indique) y comprueba que scripts, estilos, manifiesto e iconos responden 200 y con su tipo                             |
 | `npm run check:build`                                   | Falla si `dist/` lleva la galería o le faltan los ficheros de la PWA y de buscadores                                                                                                    |
 | `npm run ingest` / `npm run ingest:fixtures`            | Descarga, normaliza, valida y genera `public/data/` (real o de demostración)                                                                                                            |
 | `npm run check:data`                                    | Valida el contenido de `public/data/`                                                                                                                                                   |

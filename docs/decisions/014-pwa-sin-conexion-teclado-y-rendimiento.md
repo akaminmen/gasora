@@ -4,7 +4,7 @@ Estado: **implementada y verificada con tests y Lighthouse; la prueba con lector
 
 ## PWA (manifiesto e iconos)
 
-- `vite-plugin-pwa` 2.0.0 (Workbox 7.4.1) genera `manifest.webmanifest` y `sw.js`. El manifiesto toma `start_url`, `scope` e `id` de la **base** del build (`/gasora/` en GitHub Pages), también cuando se indica con `--base` en la línea de órdenes (se usa para probar la subruta en local).
+- `vite-plugin-pwa` 2.0.0 (Workbox 7.4.1) genera `manifest.webmanifest` y `sw.js`. El manifiesto toma `start_url`, `scope` e `id` de la **base** del build (`/` con el dominio propio gasora.es, ver ADR 017; hasta entonces fue `/gasora/`), también cuando se indica con `--base` en la línea de órdenes.
 - Iconos generados con `npm run icons` (`scripts/make-icons.ts`, renderizados con Chromium a partir de `public/favicon.svg`) y guardados en `public/`: 192 y 512 px «any» con fondo transparente, 512 px «maskable» (logo dentro del 80 % central, fondo de la marca), `apple-touch-icon.png` (180 px, sin transparencia), `favicon.ico` (32 y 48 px) e `og-image.png` (1200 × 630). Solo hay que volver a ejecutarlo si cambia el logo.
 - Accesos directos del manifiesto: Favoritos y Calculadora.
 

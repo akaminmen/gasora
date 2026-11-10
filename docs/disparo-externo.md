@@ -210,7 +210,7 @@ gh api "repos/akaminmen/gasora/actions/workflows/deploy.yml/runs?per_page=100&ev
 
 Esperado: unas 128 en 24 h, con `success` y sin huecos de más de 15 minutos (de más de 5 en la franja nocturna).
 
-- La web sigue al día: abre `https://akaminmen.github.io/gasora/data/meta.json` y comprueba que `sourceDate` no es de hace horas cuando se sabe que los precios han cambiado. Recuerda que, si no hay cambios, la fecha no avanza (es la de la última publicación).
+- La web sigue al día: abre `https://gasora.es/data/meta.json` y comprueba que `sourceDate` no es de hace horas cuando se sabe que los precios han cambiado. Recuerda que, si no hay cambios, la fecha no avanza (es la de la última publicación).
 - En el panel de Cloudflare: Worker → Metrics (peticiones y errores) y Logs.
 
 **Si falla**
