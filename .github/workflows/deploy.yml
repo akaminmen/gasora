@@ -41,9 +41,11 @@ jobs:
       # «false» solo si la comprobación dice que no hay nada nuevo; en cualquier otro caso, se despliega
       deploy: ${{ steps.compare.outputs.deploy != 'false' }}
     env:
-      GASORA_BASE: /${{ github.event.repository.name }}/
+      # Dominio propio (gasora.es): la web vive en la raíz, no en /<repo>/
+      GASORA_BASE: /
+      GASORA_SITE: https://gasora.es/
       # Último dato publicado: respaldo si la API del Ministerio falla (sección 5.3 del plan).
-      GASORA_PREVIOUS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/
+      GASORA_PREVIOUS_URL: https://gasora.es/data/
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -60,7 +62,7 @@ jobs:
       - id: compare
         continue-on-error: true
         env:
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          SITE_URL: https://gasora.es/
           FORCE: ${{ inputs.force }}
         run: npm run compare:published
       - if: steps.compare.outputs.deploy != 'false'

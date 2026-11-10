@@ -129,7 +129,7 @@ describe('deploy.yml', () => {
     });
 
     it('le pasa la dirección pública y la entrada force', () => {
-      expect(compare?.env?.['SITE_URL']).toContain('github.io');
+      expect(compare?.env?.['SITE_URL']).toBe('https://gasora.es/');
       expect(compare?.env?.['FORCE']).toBe('${{ inputs.force }}');
     });
 

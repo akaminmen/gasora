@@ -1,4 +1,4 @@
-/** Enlace absoluto a una ruta de la app (respeta la subruta de GitHub Pages). */
+/** Enlace absoluto a una ruta de la app (respeta la ruta base de la build: / con gasora.es). */
 export function absoluteUrl(path: string): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   return `${window.location.origin}${base}${path}`;

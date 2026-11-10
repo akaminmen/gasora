@@ -9,7 +9,9 @@ import { metaSchema, type Meta } from '../src/lib/data-schema';
  * ahora mismo GitHub Pages.
  *
  * Regla: se omite SOLO si el evento es `schedule` o `workflow_dispatch` (sin `force`), el código
- * publicado es el de esta ejecución y la huella de contenido y el fichero de estaciones coinciden.
+ * publicado es el de esta ejecución, la dirección con la que se compiló es la actual (cambiar de
+ * dominio o de ruta base obliga a desplegar aunque los datos sean iguales) y la huella de contenido
+ * y el fichero de estaciones coinciden.
  * Falla abierto: ante cualquier duda (no se puede descargar o leer lo publicado, falta la huella,
  * formato distinto) se despliega.
  */
@@ -28,10 +30,14 @@ export interface DecideInput {
   published: Meta | null;
   /** Commit del código publicado (`version.json`), o `null` si no se pudo leer */
   publishedSha: string | null;
+  /** Dirección pública de esta ejecución (`SITE_URL`) */
+  site: string;
+  /** Dirección con la que se compiló lo publicado (`version.json`), o `null` si no consta */
+  publishedSite: string | null;
 }
 
 export function decideDeploy(input: DecideInput): Decision {
-  const { event, force, sha, fresh, published, publishedSha } = input;
+  const { event, force, sha, fresh, published, publishedSha, site, publishedSite } = input;
   if (event !== 'schedule' && event !== 'workflow_dispatch') {
     return { deploy: true, reason: `evento «${event}»: siempre se despliega` };
   }
@@ -53,6 +59,14 @@ export function decideDeploy(input: DecideInput): Decision {
       reason: publishedSha
         ? `el código publicado (${publishedSha.slice(0, 7)}) no es el de esta ejecución (${sha.slice(0, 7)})`
         : 'no se pudo leer la versión publicada (version.json)',
+    };
+  }
+  if (publishedSite !== site) {
+    return {
+      deploy: true,
+      reason: publishedSite
+        ? `lo publicado se compiló para otra dirección (${publishedSite}), no para ${site}`
+        : 'lo publicado no indica la dirección con la que se compiló',
     };
   }
   if (published.schemaVersion !== fresh.schemaVersion || published.demo !== fresh.demo) {
@@ -100,6 +114,14 @@ export function parsePublishedSha(json: unknown): string | null {
   return null;
 }
 
+export function parsePublishedSite(json: unknown): string | null {
+  if (typeof json === 'object' && json !== null && 'site' in json) {
+    const site = (json as { site: unknown }).site;
+    return typeof site === 'string' && /^https?:\/\/\S+$/.test(site) ? site : null;
+  }
+  return null;
+}
+
 async function main() {
   const root = resolve(import.meta.dirname, '..');
   const site = (process.env['SITE_URL'] ?? '').replace(/\/?$/, '/');
@@ -126,6 +148,8 @@ async function main() {
       fresh,
       published: parsePublishedMeta(metaJson),
       publishedSha: parsePublishedSha(versionJson),
+      site,
+      publishedSite: parsePublishedSite(versionJson),
     });
   }
 

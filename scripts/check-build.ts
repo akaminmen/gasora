@@ -75,11 +75,25 @@ const version = JSON.parse(
   await readFile(join(dist, 'version.json'), 'utf8').catch(() => '{}'),
 ) as {
   sha?: string;
+  site?: string;
 };
 if (typeof version.sha !== 'string' || version.sha.length < 5) {
   problems.push(
     'Falta dist/version.json con el commit publicado (lo usa la ingesta para no omitir código nuevo)',
   );
+}
+// La dirección y la ruta base deben coincidir: si no, la web carga el HTML pero no sus ficheros
+const siteBase = /^https?:\/\/[^/]+(\/.*)$/.exec(version.site ?? '')?.[1];
+if (!siteBase || !siteBase.endsWith('/')) {
+  problems.push('dist/version.json no lleva la dirección pública (site) con la barra final');
+} else {
+  const local = [...index.matchAll(/\s(?:src|href)="(\/[^"/][^"]*)"/g)].map((m) => m[1] ?? '');
+  const outside = local.filter((url) => !url.startsWith(siteBase));
+  if (!local.length || outside.length) {
+    problems.push(
+      `dist/index.html pide ficheros fuera de la ruta base ${siteBase}: ${outside.slice(0, 3).join(', ') || '(ninguno encontrado)'}`,
+    );
+  }
 }
 const licenses = await readFile(join(dist, 'licencias-de-terceros.txt'), 'utf8').catch(() => '');
 if (!/maplibre-gl/.test(licenses) || licenses.length < 10_000) {

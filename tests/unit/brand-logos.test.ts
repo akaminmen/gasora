@@ -74,11 +74,13 @@ describe('validación de SVG', () => {
 
 describe('caché de los logos', () => {
   it('guarda los de la propia web (con subruta o sin ella) y nada más', () => {
-    expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/brands/repsol.svg')).toBe(true);
+    // Subruta: se mantiene a propósito por si la web volviera a una (ADR 017)
+    expect(BRANDS_URL.test('https://example.org/sub/brands/repsol.svg')).toBe(true);
+    expect(BRANDS_URL.test('https://gasora.es/brands/repsol.svg')).toBe(true);
     expect(BRANDS_URL.test('http://127.0.0.1:4173/brands/shell.webp')).toBe(true);
-    expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/brands/README.md')).toBe(false);
-    expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/brands/repsol.svg?x=1')).toBe(false);
-    expect(BRANDS_URL.test('https://akaminmen.github.io/gasora/assets/logo.svg')).toBe(false);
+    expect(BRANDS_URL.test('https://gasora.es/brands/README.md')).toBe(false);
+    expect(BRANDS_URL.test('https://gasora.es/brands/repsol.svg?x=1')).toBe(false);
+    expect(BRANDS_URL.test('https://gasora.es/assets/logo.svg')).toBe(false);
   });
 });
 
@@ -95,7 +97,7 @@ describe('versión del logo en la URL', () => {
     );
   });
   it('la caché de logos acepta la URL con ?v=hash y rechaza otras consultas', () => {
-    const base = 'https://akaminmen.github.io/gasora/brands/repsol.svg';
+    const base = 'https://gasora.es/brands/repsol.svg';
     expect(BRANDS_URL.test(`${base}?v=3f2a91c0`)).toBe(true);
     expect(BRANDS_URL.test(`${base}?v=3F2A91C0`)).toBe(false);
     expect(BRANDS_URL.test(`${base}?v=3f2a91`)).toBe(false);

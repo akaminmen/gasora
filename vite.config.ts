@@ -17,15 +17,18 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { version } from './package.json' with { type: 'json' };
 
-// En GitHub Pages la app vive en una subruta (/<repo>/): el workflow define GASORA_BASE.
+// Con el dominio propio (gasora.es) la app vive en la raíz: el workflow define GASORA_BASE=/.
+// Si volviera a una subruta (/<repo>/), se cambian GASORA_BASE y GASORA_SITE (ADR 017).
 // `--base /ruta/` en la línea de órdenes (build:e2e:base) manda sobre la variable de entorno.
 const cliBaseIndex = process.argv.indexOf('--base');
 const cliBase = cliBaseIndex >= 0 ? process.argv[cliBaseIndex + 1] : undefined;
 const base = cliBase ?? process.env['GASORA_BASE'] ?? '/';
 
-/** Dirección pública de la web (con la subruta y la barra final), para las etiquetas de compartir. */
+/** Dirección pública de la web (con la barra final), para las etiquetas de compartir. */
 const owner = process.env['GITHUB_REPOSITORY_OWNER']?.toLowerCase() ?? 'akaminmen';
-const site = process.env['GASORA_SITE'] ?? `https://${owner}.github.io${base}`;
+const site =
+  process.env['GASORA_SITE'] ??
+  (base === '/' ? 'https://gasora.es/' : `https://${owner}.github.io${base}`);
 const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'acerca'];
 
 /**
@@ -127,11 +130,11 @@ function seoFiles(): Plugin {
         fileName: 'robots.txt',
         source: ['User-agent: *', 'Allow: /', '', `Sitemap: ${site}sitemap.xml`, ''].join('\n'),
       });
-      // Commit del código publicado: la ingesta lo compara para no omitir un despliegue de código
+      // Commit y dirección del código publicado: la ingesta los compara para no omitir un despliegue de código
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: `${JSON.stringify({ sha: process.env['GITHUB_SHA'] ?? 'local', version })}
+        source: `${JSON.stringify({ sha: process.env['GITHUB_SHA'] ?? 'local', version, site })}
 `,
       });
       const urls = PUBLIC_PAGES.map((page) => `  <url><loc>${site}${page}</loc></url>`);

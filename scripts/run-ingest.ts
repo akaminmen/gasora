@@ -11,7 +11,7 @@ export interface IngestOptions {
   /** Carpeta de salida (public/data) */
   outDir: string;
   useFixtures?: boolean;
-  /** Base de los datos publicados (en CI, la URL de GitHub Pages): respaldo si la API falla. */
+  /** Base de los datos publicados (en CI, https://gasora.es/data/): respaldo si la API falla. */
   previousUrl?: string;
   /** Descarga de la API; los tests inyectan una que falla. */
   fetchStations?: (log: (message: string) => void) => Promise<RawResponse>;

@@ -7,6 +7,7 @@ import {
   fetchPublished,
   parsePublishedMeta,
   parsePublishedSha,
+  parsePublishedSite,
   type DecideInput,
 } from '../../scripts/compare-published';
 
@@ -19,6 +20,7 @@ const fixture = JSON.parse(
 const fresh = buildDataset(fixture, { demo: false, now: new Date('2026-11-06T10:00:00Z') }).dataset
   .meta;
 const SHA = 'a'.repeat(40);
+const SITE = 'https://gasora.es/';
 
 const base: DecideInput = {
   event: 'schedule',
@@ -27,6 +29,8 @@ const base: DecideInput = {
   fresh,
   published: fresh,
   publishedSha: SHA,
+  site: SITE,
+  publishedSite: SITE,
 };
 
 describe('decideDeploy', () => {
@@ -66,6 +70,13 @@ describe('decideDeploy', () => {
     expect(decision.deploy).toBe(true);
     expect(decision.reason).toMatch(/código publicado/);
   });
+  it('despliega si lo publicado se compiló para otra dirección o no dice para cuál (cambio de dominio)', () => {
+    const moved = decideDeploy({ ...base, publishedSite: 'https://akaminmen.github.io/gasora/' });
+    expect(moved.deploy).toBe(true);
+    expect(moved.reason).toMatch(/otra dirección/);
+    // Un version.json anterior a este cambio no lleva la dirección: se despliega la primera vez
+    expect(decideDeploy({ ...base, publishedSite: null }).deploy).toBe(true);
+  });
   it('falla abierto: sin meta publicado, sin versión o sin huella, despliega', () => {
     expect(decideDeploy({ ...base, published: null }).deploy).toBe(true);
     expect(decideDeploy({ ...base, publishedSha: null }).deploy).toBe(true);
@@ -91,6 +102,9 @@ describe('lectura de lo publicado', () => {
     expect(parsePublishedSha({ sha: 'local' })).toBeNull();
     expect(parsePublishedSha({})).toBeNull();
     expect(parsePublishedSha(null)).toBeNull();
+    expect(parsePublishedSite({ sha: SHA, site: SITE })).toBe(SITE);
+    expect(parsePublishedSite({ sha: SHA })).toBeNull();
+    expect(parsePublishedSite({ site: 'gasora.es' })).toBeNull();
   });
 });
 

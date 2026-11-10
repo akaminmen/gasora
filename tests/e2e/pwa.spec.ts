@@ -6,7 +6,7 @@ import { BIG_CP } from './data';
 
 /**
  * PWA (Fase 6): manifiesto, iconos, service worker, modo sin conexión y actualizaciones.
- * Se prueba sobre un build con la subruta /gasora/ (como en GitHub Pages), en el puerto 4174.
+ * Se prueba sobre un build con la base / (como en gasora.es), en el puerto 4174.
  * No usa el estilo de sustitución del mapa: con el service worker activo las peticiones de teselas
  * las hace él y Playwright no las intercepta. Sin conexión el mapa muestra su aviso y la lista sigue.
  */
@@ -43,24 +43,24 @@ async function ready(page: Page) {
 }
 
 test.describe('manifiesto, iconos y metadatos', () => {
-  test('el manifiesto es válido y está enlazado con la subruta', async ({ page }) => {
+  test('el manifiesto es válido y está enlazado desde la raíz', async ({ page }) => {
     await page.goto('./');
     const href = await page.locator('link[rel="manifest"]').getAttribute('href');
-    expect(href).toBe('/gasora/manifest.webmanifest');
+    expect(href).toBe('/manifest.webmanifest');
     const manifest = (await (await page.request.get(href ?? '')).json()) as Record<string, unknown>;
     expect(manifest).toMatchObject({
       name: 'Gasora',
       short_name: 'Gasora',
       lang: 'es',
-      start_url: '/gasora/',
-      scope: '/gasora/',
-      id: '/gasora/',
+      start_url: '/',
+      scope: '/',
+      id: '/',
       display: 'standalone',
       theme_color: '#4F46E5',
       background_color: '#F7FAFC',
     });
     const shortcuts = manifest['shortcuts'] as { url: string }[];
-    expect(shortcuts.map((s) => s.url)).toEqual(['/gasora/favoritos', '/gasora/calculadora']);
+    expect(shortcuts.map((s) => s.url)).toEqual(['/favoritos', '/calculadora']);
   });
 
   test('los iconos existen, son PNG y miden lo que declara el manifiesto', async ({ page }) => {
@@ -75,26 +75,29 @@ test.describe('manifiesto, iconos y metadatos', () => {
     expect(manifest.icons.some((i) => i.sizes === '512x512')).toBe(true);
     for (const icon of manifest.icons) {
       const [w, h] = icon.sizes.split('x').map(Number);
-      const size = await pngSize(page, `/gasora/${icon.src}`);
+      const size = await pngSize(page, `/${icon.src}`);
       expect(size, icon.src).toMatchObject({ w, h, type: 'image/png' });
     }
   });
 
-  test('iconos de iOS y favicon, y etiquetas para compartir con la subruta', async ({ page }) => {
+  test('iconos de iOS y favicon, y etiquetas para compartir con gasora.es', async ({ page }) => {
     await page.goto('./');
-    expect(await pngSize(page, '/gasora/apple-touch-icon.png')).toMatchObject({ w: 180, h: 180 });
-    const ico = await (await page.request.get('/gasora/favicon.ico')).body();
+    expect(await pngSize(page, '/apple-touch-icon.png')).toMatchObject({ w: 180, h: 180 });
+    const ico = await (await page.request.get('/favicon.ico')).body();
     expect(ico.readUInt16LE(2)).toBe(1); // tipo icono
     expect(ico.readUInt16LE(4)).toBeGreaterThanOrEqual(2); // 32 y 48 px
-    expect((await page.request.get('/gasora/favicon.svg')).ok()).toBe(true);
+    expect((await page.request.get('/favicon.svg')).ok()).toBe(true);
     await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
       'href',
-      '/gasora/apple-touch-icon.png',
+      '/apple-touch-icon.png',
     );
     const og = await page.locator('meta[property="og:image"]').getAttribute('content');
-    expect(og).toMatch(/^https:\/\/[^/]+\/gasora\/og-image\.png$/);
-    expect(await pngSize(page, '/gasora/og-image.png')).toMatchObject({ w: 1200, h: 630 });
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/gasora\/$/);
+    expect(og).toMatch(/^https:\/\/gasora\.es\/og-image\.png$/);
+    expect(await pngSize(page, '/og-image.png')).toMatchObject({ w: 1200, h: 630 });
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://gasora.es/',
+    );
     await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
       'content',
       'summary_large_image',
@@ -103,12 +106,12 @@ test.describe('manifiesto, iconos y metadatos', () => {
   });
 
   test('robots.txt y sitemap.xml con la dirección real', async ({ page }) => {
-    const robots = await (await page.request.get('/gasora/robots.txt')).text();
+    const robots = await (await page.request.get('/robots.txt')).text();
     expect(robots).toContain('Allow: /');
-    expect(robots).toMatch(/Sitemap: https:\/\/[^/]+\/gasora\/sitemap\.xml/);
-    const sitemap = await (await page.request.get('/gasora/sitemap.xml')).text();
-    for (const path of ['/gasora/', '/gasora/favoritos', '/gasora/calculadora', '/gasora/acerca']) {
-      expect(sitemap).toContain(`${path}</loc>`);
+    expect(robots).toMatch(/Sitemap: https:\/\/gasora\.es\/sitemap\.xml/);
+    const sitemap = await (await page.request.get('/sitemap.xml')).text();
+    for (const page of ['', 'favoritos', 'calculadora', 'acerca']) {
+      expect(sitemap).toContain(`<loc>https://gasora.es/${page}</loc>`);
     }
     // Las fichas /e/:id no se listan (son miles y cambian)
     expect(sitemap).not.toContain('/e/');
@@ -116,9 +119,7 @@ test.describe('manifiesto, iconos y metadatos', () => {
 });
 
 test.describe('service worker y sin conexión', () => {
-  test('se registra con el ámbito /gasora/ y guarda la aplicación (también el mapa)', async ({
-    page,
-  }) => {
+  test('se registra con el ámbito / y guarda la aplicación (también el mapa)', async ({ page }) => {
     await ready(page);
     const info = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.ready;
@@ -133,9 +134,9 @@ test.describe('service worker y sin conexión', () => {
         urls,
       };
     });
-    expect(info.scope).toBe('/gasora/');
-    expect(info.script).toBe('/gasora/sw.js');
-    expect(info.urls).toContain('/gasora/index.html');
+    expect(info.scope).toBe('/');
+    expect(info.script).toBe('/sw.js');
+    expect(info.urls).toContain('/index.html');
     expect(info.urls.some((u) => /\/assets\/MapCanvas-.*\.js$/.test(u))).toBe(true);
     expect(info.urls.some((u) => /\/assets\/maplibre-gl-worker-.*\.js$/.test(u))).toBe(true);
     expect(info.urls.some((u) => u.endsWith('/manifest.webmanifest'))).toBe(true);
@@ -144,7 +145,7 @@ test.describe('service worker y sin conexión', () => {
   });
 
   test('la caché de teselas respeta los límites de OpenFreeMap', async ({ page }) => {
-    const sw = await (await page.request.get('/gasora/sw.js')).text();
+    const sw = await (await page.request.get('/sw.js')).text();
     expect(sw).toContain('gasora-map-tiles-v1');
     const tiles = /maxEntries:\s*(\d+)[^}]*maxAgeSeconds:\s*(\d+)[^}]*purgeOnQuotaError:\s*!0/.exec(
       sw.slice(sw.indexOf('gasora-map-tiles-v1') - 100, sw.indexOf('gasora-map-tiles-v1') + 400),
@@ -258,11 +259,7 @@ function serve(): Promise<{ server: Server; origin: string; bump: () => void }> 
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://x');
     let path = decodeURIComponent(url.pathname);
-    if (!path.startsWith('/gasora/')) {
-      response.writeHead(404).end();
-      return;
-    }
-    path = path.slice('/gasora/'.length) || 'index.html';
+    path = path.slice(1) || 'index.html';
     let file = join(BASE_DIR, path);
     if (!existsSync(file) || statSync(file).isDirectory()) file = join(BASE_DIR, 'index.html');
     let body: Buffer | string = readFileSync(file);
@@ -308,7 +305,7 @@ test.describe('actualizaciones', () => {
   });
 
   async function open(page: Page) {
-    await page.goto(`${host.origin}/gasora/`);
+    await page.goto(`${host.origin}/`);
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
     await expect(page.getByRole('heading', { level: 1 })).toContainText('La gasolina más barata');
@@ -407,7 +404,7 @@ test.describe('logos de marca', () => {
           return (await cache.keys()).map((request) => new URL(request.url).pathname);
         }),
       )
-      .toContain('/gasora/brands/ballenoil.svg');
+      .toContain('/brands/ballenoil.svg');
 
     await context.setOffline(true);
     await page.reload();

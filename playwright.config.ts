@@ -8,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
  *  - chromium: todos los tests (menos los de servicios externos y los de la PWA).
  *  - firefox y webkit: solo layout, accesibilidad (axe) y teclado. Los umbrales de la tarjeta usan calc()
  *    dentro de @container y hay que comprobarlos fuera de Chromium.
- *  - pwa: service worker, manifiesto y modo sin conexión sobre un build con la subruta /gasora/
+ *  - pwa: service worker, manifiesto, enlaces profundos y modo sin conexión sobre un build con la base /
  *    (como en GitHub Pages), en el puerto 4174.
  */
 export default defineConfig({
@@ -31,7 +31,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Las pruebas contra servicios externos van aparte: playwright.live.config.ts
-      testIgnore: [/.*-live\.spec\.ts/, /pwa\.spec\.ts/],
+      testIgnore: [/.*-live\.spec\.ts/, /(pwa|deep-links)\.spec\.ts/],
     },
     {
       name: 'firefox',
@@ -53,10 +53,10 @@ export default defineConfig({
       name: 'pwa',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://127.0.0.1:4174/gasora/',
+        baseURL: 'http://127.0.0.1:4174/',
         serviceWorkers: 'allow',
       },
-      testMatch: /pwa\.spec\.ts/,
+      testMatch: /(pwa|deep-links)\.spec\.ts/,
     },
   ],
   webServer: [
@@ -68,7 +68,7 @@ export default defineConfig({
     },
     {
       command: 'npm run build:e2e:base && npm run preview:base',
-      url: 'http://127.0.0.1:4174/gasora/',
+      url: 'http://127.0.0.1:4174/',
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
     },
