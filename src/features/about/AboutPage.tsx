@@ -16,11 +16,10 @@ import { FUEL_LABELS } from '../../lib/fuels';
 import { formatDateTime, formatPrice } from '../../lib/format';
 import { useGasoraData } from '../../lib/useGasoraData';
 import { usePwaStore } from '../../pwa/store';
-import { Button } from '../../components/ui/Button';
+import { LinkButton } from '../../components/ui/Button';
 
 /** Instalar la app y versión (sirve para comprobar que una actualización ha llegado). */
 function InstallCard() {
-  const installEvent = usePwaStore((s) => s.installEvent);
   const installed = usePwaStore((s) => s.installed);
   const offlineReady = usePwaStore((s) => s.offlineReady);
   const standalone =
@@ -31,24 +30,15 @@ function InstallCard() {
         Gasora funciona como aplicación: se instala en el móvil o el ordenador y abre los últimos
         datos guardados aunque no haya conexión.
       </p>
-      {installEvent && !installed && !standalone && (
-        <Button
-          className="mt-3"
-          icon={<Download width={18} height={18} aria-hidden />}
-          onClick={() => {
-            void installEvent.prompt();
-          }}
-        >
-          Instalar Gasora
-        </Button>
-      )}
       {(installed || standalone) && <p className="mt-2 font-semibold">Ya la tienes instalada.</p>}
-      {!installEvent && !installed && !standalone && (
-        <p className="mt-2 text-muted">
-          En iPhone y iPad: Compartir → «Añadir a pantalla de inicio». En otros navegadores, busca
-          «Instalar» en su menú.
-        </p>
-      )}
+      <LinkButton
+        to="/instalar"
+        variant="secondary"
+        className="mt-3"
+        icon={<Download width={18} height={18} aria-hidden />}
+      >
+        Ver instrucciones
+      </LinkButton>
       <p className="mt-2 text-xs text-muted" data-testid="app-version">
         Versión {__APP_VERSION__} ({__APP_BUILD__}){offlineReady ? ' · lista sin conexión' : ''}
       </p>

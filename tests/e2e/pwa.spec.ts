@@ -110,7 +110,7 @@ test.describe('manifiesto, iconos y metadatos', () => {
     expect(robots).toContain('Allow: /');
     expect(robots).toMatch(/Sitemap: https:\/\/gasora\.es\/sitemap\.xml/);
     const sitemap = await (await page.request.get('/sitemap.xml')).text();
-    for (const page of ['', 'favoritos', 'calculadora', 'acerca']) {
+    for (const page of ['', 'favoritos', 'calculadora', 'instalar', 'acerca']) {
       expect(sitemap).toContain(`<loc>https://gasora.es/${page}</loc>`);
     }
     // Las fichas /e/:id no se listan (son miles y cambian)

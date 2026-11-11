@@ -40,11 +40,12 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
 }
 
 /** Wordmark «Gasora»: «Gas» en tinta y «ora» en color de marca (Plus Jakarta Sans ExtraBold). */
-export function Wordmark({ size = 24 }: { size?: number }) {
+/** `fixed`: tamaño en px que no crece con el texto del sistema (el logotipo de la cabecera móvil). */
+export function Wordmark({ size = 24, fixed = false }: { size?: number; fixed?: boolean }) {
   return (
     <span
       className="font-display leading-none font-extrabold tracking-[-0.03em]"
-      style={{ fontSize: `${size / 16}rem` }}
+      style={{ fontSize: fixed ? `${size}px` : `${size / 16}rem` }}
     >
       <span className="text-ink">Gas</span>
       <span style={{ color: 'var(--brand-logo)' }}>ora</span>
@@ -52,11 +53,19 @@ export function Wordmark({ size = 24 }: { size?: number }) {
   );
 }
 
-export function Logo({ markSize = 40, wordSize = 24 }: { markSize?: number; wordSize?: number }) {
+export function Logo({
+  markSize = 40,
+  wordSize = 24,
+  fixed = false,
+}: {
+  markSize?: number;
+  wordSize?: number;
+  fixed?: boolean;
+}) {
   return (
     <span className="inline-flex items-center gap-2">
       <LogoMark size={markSize} />
-      <Wordmark size={wordSize} />
+      <Wordmark size={wordSize} fixed={fixed} />
     </span>
   );
 }

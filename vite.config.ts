@@ -29,7 +29,7 @@ const owner = process.env['GITHUB_REPOSITORY_OWNER']?.toLowerCase() ?? 'akaminme
 const site =
   process.env['GASORA_SITE'] ??
   (base === '/' ? 'https://gasora.es/' : `https://${owner}.github.io${base}`);
-const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'acerca'];
+const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'instalar', 'acerca'];
 
 /**
  * Escribe en `index.html` el nombre con hash del fichero de estaciones (`stations.{hash}.json`,

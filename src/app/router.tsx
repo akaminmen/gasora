@@ -6,6 +6,9 @@ import { useFooterHidden } from '../lib/useFooterHidden';
 import { AppShell } from './AppShell';
 
 // Cada pantalla secundaria va en su propio trozo: el inicio carga solo lo suyo.
+const InstallPage = lazy(() =>
+  import('../features/install/InstallPage').then((m) => ({ default: m.InstallPage })),
+);
 const AboutPage = lazy(() =>
   import('../features/about/AboutPage').then((m) => ({ default: m.AboutPage })),
 );
@@ -63,6 +66,14 @@ export function AppRouter() {
             element={
               <Suspense fallback={<Loading />}>
                 <CalculatorPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="instalar"
+            element={
+              <Suspense fallback={<Loading />}>
+                <InstallPage />
               </Suspense>
             }
           />
