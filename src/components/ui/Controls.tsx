@@ -4,6 +4,7 @@ import { useDismissable } from '../../hooks/useDismissable';
 import { FUELS, type FuelId } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
 import type { SortKey } from '../../lib/resultset';
+import { BrandSheet } from './BrandSheet';
 
 export function FuelChip({
   label,
@@ -138,23 +139,30 @@ export interface BrandOption {
 /**
  * Filtro de marcas (multiselección). El agrupado en «Otras» solo afecta a esta lista: la tarjeta
  * de cada estación sigue mostrando su rótulo real.
+ *
+ * - Tablet y escritorio: desplegable bajo el botón; cada marca se aplica al marcarla.
+ * - Móvil (`modal`): hoja de selección modal (`BrandSheet`) en un portal; la elección es un
+ *   borrador que se aplica al pulsar «Listo».
  */
 export function BrandMultiSelect({
   options,
   selected,
   onChange,
+  modal = false,
 }: {
   options: BrandOption[];
   selected: string[];
   onChange: (selected: string[]) => void;
+  modal?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string[]>(selected);
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
   // Esc cierra y devuelve el foco al botón; el foco no sale del desplegable mientras está abierto
-  useDismissable({ open, onClose: close, containerRef: panelRef, triggerRef });
+  useDismissable({ open: open && !modal, onClose: close, containerRef: panelRef, triggerRef });
   const toggle = (key: string) =>
     onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
   return (
@@ -163,21 +171,41 @@ export function BrandMultiSelect({
         ref={triggerRef}
         type="button"
         aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        onClick={() => setOpen((v) => !v)}
+        aria-haspopup={modal ? 'dialog' : undefined}
+        aria-controls={open && !modal ? panelId : undefined}
+        onClick={() => {
+          setDraft(selected);
+          setOpen((v) => !v);
+        }}
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[0.8125rem] font-semibold whitespace-nowrap text-ink"
       >
         <Store width={16} height={16} aria-hidden />
         Marcas{selected.length > 0 ? ` (${selected.length})` : ''}
         <ChevronDown width={16} height={16} aria-hidden />
       </button>
-      {open && (
+      {open && modal && (
+        <BrandSheet
+          options={options}
+          selected={draft}
+          onToggle={(key) =>
+            setDraft((d) => (d.includes(key) ? d.filter((k) => k !== key) : [...d, key]))
+          }
+          onClear={() => setDraft([])}
+          onDone={() => {
+            onChange(draft);
+            close();
+          }}
+          onCancel={close}
+          triggerRef={triggerRef}
+        />
+      )}
+      {open && !modal && (
         <div
           ref={panelRef}
           id={panelId}
           role="group"
           aria-label="Marcas"
-          className="absolute top-[calc(100%+8px)] left-0 z-20 max-h-[60dvh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-raised"
+          className="absolute top-[calc(100%+8px)] left-0 z-20 max-h-[min(60dvh,28rem)] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-raised"
         >
           {options.map((option) => (
             <label

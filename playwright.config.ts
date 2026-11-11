@@ -31,7 +31,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Las pruebas contra servicios externos van aparte: playwright.live.config.ts
-      testIgnore: [/.*-live\.spec\.ts/, /(pwa|deep-links)\.spec\.ts/],
+      testIgnore: [/.*-live\.spec\.ts/, /(pwa|deep-links)\.spec\.ts/, /mobile-.*\.spec\.ts/],
     },
     {
       name: 'firefox',
@@ -42,12 +42,17 @@ export default defineConfig({
           firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false },
         },
       },
-      testMatch: /(layout|a11y|keyboard)\.spec\.ts/,
+      testMatch: /(layout|a11y|keyboard|install-ui)\.spec\.ts/,
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testMatch: /(layout|a11y|keyboard)\.spec\.ts/,
+      testMatch: /(layout|a11y|keyboard|install-ui)\.spec\.ts/,
+    },
+    {
+      name: 'mobile-webkit',
+      use: { ...devices['iPhone 11 Pro'] },
+      testMatch: /mobile-.*\.spec\.ts/,
     },
     {
       name: 'pwa',

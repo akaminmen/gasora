@@ -72,7 +72,12 @@ for (const theme of ['light', 'dark'] as const) {
         // En móvil, el radio y las marcas solo aparecen con la hoja expandida
         if (width < 640) await page.getByTestId('sheet-toggle').click();
         await page.getByRole('button', { name: /^Marcas/ }).click();
-        await expect(page.getByRole('group', { name: 'Marcas' })).toBeVisible();
+        // En móvil es un diálogo modal; en tablet y escritorio, un desplegable
+        await expect(
+          width < 640
+            ? page.getByRole('dialog', { name: 'Marcas' })
+            : page.getByRole('group', { name: 'Marcas' }),
+        ).toBeVisible();
         await expectNoViolations(page);
       });
 

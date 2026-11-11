@@ -242,6 +242,7 @@ export function ResultsView({ place }: { place: Place }) {
     </p>
   );
 
+  // En móvil la cabecera de la hoja ya lleva el selector de orden: aquí no se repite
   const controls = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {usesRadius(place) && (
@@ -249,9 +250,14 @@ export function ResultsView({ place }: { place: Place }) {
           <RadiusSlider value={radiusKm} onChange={setRadius} />
         </div>
       )}
-      {hasOrigin(place) && <SortControl value={sort} onChange={setSort} />}
+      {hasOrigin(place) && mode !== 'mobile' && <SortControl value={sort} onChange={setSort} />}
       {result && result.brands.length > 1 && (
-        <BrandMultiSelect options={result.brands} selected={brands} onChange={setBrands} />
+        <BrandMultiSelect
+          options={result.brands}
+          selected={brands}
+          onChange={setBrands}
+          modal={mode === 'mobile'}
+        />
       )}
       {place.kind === 'municipality' && !place.expanded && (
         <Button variant="secondary" onClick={widen}>
@@ -443,7 +449,11 @@ export function ResultsView({ place }: { place: Place }) {
             <FuelChips value={fuel} onChange={setFuel} />
           </div>
         </div>
-        <div className="absolute right-3 z-20" style={{ bottom: sheetHeight + 12 }}>
+        {/* Con la hoja expandida el botón queda abajo, sobre la lista: encima de la hoja taparía los chips */}
+        <div
+          className="absolute right-3 z-20"
+          style={{ bottom: snap === 'full' && !collapsed ? 12 : sheetHeight + 12 }}
+        >
           <Button
             icon={
               snap === 'full' && !collapsed ? (
@@ -476,7 +486,7 @@ export function ResultsView({ place }: { place: Place }) {
           {selectedItem ? (
             detail(3)
           ) : (
-            <div className="px-3 pb-4">
+            <div className={`px-3 ${snap === 'full' ? 'pb-20' : 'pb-4'}`}>
               {areaNote}
               {list}
               <div className="mt-3 flex justify-center">

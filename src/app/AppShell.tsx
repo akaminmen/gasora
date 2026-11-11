@@ -1,4 +1,4 @@
-import { Calculator, Heart, House, Info } from 'lucide-react';
+import { Calculator, Download, Heart, House, Info } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { DataUpdateStrip } from '../components/DataUpdateStrip';
@@ -9,6 +9,7 @@ import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { ToastHost } from '../components/ui/Feedback';
 import { formatDateTime } from '../lib/format';
 import { useGasoraData } from '../lib/useGasoraData';
+import { useStandalone } from '../pwa/platform';
 
 const DESKTOP_LINKS = [
   { to: '/', label: 'Inicio', end: true },
@@ -53,6 +54,7 @@ export function AppShell() {
   const isHome = pathname === '/';
   const mainRef = useRef<HTMLElement>(null);
   const stripsRef = useRef<HTMLDivElement>(null);
+  const standalone = useStandalone();
 
   // Alto de las franjas bajo la cabecera («Sin conexión», «Hay precios nuevos»): las pantallas de alto
   // fijo (resultados) lo descuentan para no desbordar
@@ -81,20 +83,20 @@ export function AppShell() {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="app-root flex flex-col">
       <a
         href="#contenido"
         className="sr-only z-50 rounded-full bg-brand text-on-brand focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:px-4 focus:py-2"
       >
         Saltar al contenido
       </a>
-      <header className="sticky top-0 z-30 flex h-16 flex-none items-center gap-2 border-b border-line bg-surface px-3 sm:gap-4 sm:px-4 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-16 flex-none items-center gap-1.5 border-b border-line bg-surface px-3 sm:gap-4 sm:px-4 lg:px-6">
         <Link
           to="/"
           aria-label="Gasora, ir al inicio"
           className="inline-flex min-h-11 items-center no-underline"
         >
-          <Logo markSize={36} wordSize={24} />
+          <Logo markSize={36} wordSize={24} fixed />
         </Link>
         {!isHome && (
           <div className="hidden max-w-[460px] flex-1 lg:block">
@@ -118,6 +120,16 @@ export function AppShell() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 lg:ml-0">
+          {!standalone && (
+            <Link
+              to="/instalar"
+              aria-label="Instalar la aplicación"
+              data-testid="header-install"
+              className="inline-grid size-[44px] place-items-center rounded-full text-muted hover:bg-brand-50 sm:hidden"
+            >
+              <Download width={20} height={20} aria-hidden />
+            </Link>
+          )}
           <Link
             to="/acerca"
             aria-label="Acerca de Gasora"

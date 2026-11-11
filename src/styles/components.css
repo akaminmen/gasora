@@ -477,6 +477,85 @@
   background: var(--handle);
 }
 
+/*
+ * Raíz de la aplicación: alto mínimo = viewport dinámico. Con 100vh (viewport grande) en iOS Safari
+ * el documento mide más que el área visible cuando la barra de direcciones está abajo, la página se
+ * desplaza y deja la cabecera fija sobre el contenido y un hueco sobre la barra inferior.
+ */
+.app-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---------- Diálogo de selección (marcas en móvil) ---------- */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(13 27 42 / 0.5);
+  /* El fondo no se desplaza ni encadena el gesto con la página */
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.dialog-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 32rem;
+  /* Altura máxima: el viewport dinámico menos la zona segura superior y un margen */
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 16px);
+  overflow: hidden;
+  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -8px 32px rgb(13 27 42 / 0.3);
+  outline: none;
+  animation: dialog-sheet-in 0.2s ease-out;
+}
+.dialog-sheet__head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 12px 8px 20px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.dialog-sheet__list {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 12px;
+  /* Solo desplazamiento vertical propio, sin encadenar con la hoja inferior, el mapa ni la página */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.dialog-sheet__foot {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-top: 1px solid var(--border);
+}
+@keyframes dialog-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-sheet {
+    animation: none;
+  }
+}
+
 /* ---------- Esqueletos ---------- */
 .skeleton {
   border-radius: 8px;
