@@ -95,12 +95,27 @@ Notas:
 - `murmurhash-js` (MIT, dependencia transitiva de MapLibre) no incluye un archivo de licencia en su paquete; el archivo publicado lo indica y recoge la licencia declarada en su `package.json`.
 - Un test (`tests/unit/licenses.test.ts`) falla si una dependencia de producción nueva no aparece en `licencias-de-terceros.txt`: hay que volver a ejecutar `npm run licenses` y subir el archivo. Las versiones del archivo pueden quedar un poco por detrás de las de `package-lock.json` tras una actualización de Dependabot hasta la siguiente ejecución.
 
+## Alcance de la licencia MIT
+
+`LICENSE` contiene solo el texto MIT estándar (así GitHub lo reconoce), con el nombre del titular de los derechos del código. Lo que **no** cubre, y antes figuraba como párrafo adicional en ese archivo:
+
+- Los datos de precios de carburantes pertenecen al Ministerio para la Transición Ecológica y el Reto Demográfico y se reutilizan al amparo de la Ley 37/2007.
+- Las teselas, estilos y tipografías del mapa son de OpenFreeMap / OpenMapTiles / OpenStreetMap (ver «Mapa» y «Fuentes tipográficas» más arriba).
+- Los logos de `public/brands/` son marcas de sus titulares.
+
+Esto mismo se dice en el README (apartado «Licencia»), en `public/licencias-de-terceros.txt` y, para los logos y la fuente de los datos, en «Acerca de» de la web.
+
 ## Logos de marcas
 
 - Logos presentes en `public/brands/` a 04/11/2026: Ballenoil, BP, Cepsa, Galp, Moeve, Petronor, Petroprix, Plenergy, Repsol y Shell. Los aportó el propietario del proyecto; Gasora no los descarga ni los dibuja.
 - Son marcas registradas de sus titulares. Se muestran solo para identificar la estación, sin sugerir afiliación ni respaldo, y no están cubiertos por la licencia MIT.
 - **Pendiente (propietario):** confirmar de dónde procede cada archivo y que su uso está permitido; si un titular pide la retirada, basta con borrar el archivo y la interfaz vuelve al avatar con la inicial. Los archivos publicados quedan en el historial de git.
 
-## Sin cookies ni terceros
+## Privacidad: qué se guarda y qué se envía
 
-La web no usa cookies ni analítica. Lo único que guarda en el dispositivo (almacenamiento local y caché del navegador) lleva el prefijo `gasora:` o son cachés de la propia aplicación. Las únicas peticiones a servidores ajenos son las del mapa a `tiles.openfreemap.org`; un test (`tests/e2e/privacy.spec.ts`) lo comprueba.
+La web no usa cookies ni analítica ni cuentas (texto de «Acerca de», comprobado por `tests/e2e/privacy.spec.ts`).
+
+- **En el dispositivo** (`localStorage`, solo estas cuatro claves): `gasora:favorites:v1` (códigos de las gasolineras favoritas, hasta 100), `gasora:fuel:v1` (combustible elegido), `gasora:theme:v1` (tema) y `gasora:liters:v1` (litros de la calculadora). Además, las cachés de la aplicación: precarga del service worker, últimos precios (`gasora-data-v1`), logos de marcas y teselas, estilo y tipografías del mapa que se han visto (con tope y caducidad). Nada de esto se envía a ningún servidor.
+- **La ubicación** del usuario se usa solo en el dispositivo (ordenar y medir distancias); no se envía a ningún servidor de Gasora ni se escribe en la URL. La búsqueda «en esta zona» sí escribe el centro del mapa (4 decimales, ≈ 11 m) en la URL; quien reciba ese enlace verá ese punto.
+- **Servidores que ven la IP del usuario:** `tiles.openfreemap.org` (estilos, teselas y tipografías del mapa; recibe además qué teselas se piden, es decir, la zona que se mira, que será la del usuario si centra el mapa en su posición) y GitHub Pages (el alojamiento, con sus propios registros). No hay más peticiones a terceros (`privacy.spec.ts`). «Cómo llegar» abre Google Maps, Apple Maps o Waze con las coordenadas de la gasolinera y sin cabecera `Referer`; esos servicios se rigen por su política.
+- No se ha redactado una política de privacidad jurídica: el texto es informativo. Si el proyecto tuviera un uso comercial, habría que revisarlo con asesoramiento.

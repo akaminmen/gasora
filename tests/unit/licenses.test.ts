@@ -32,7 +32,9 @@ describe('licencias-de-terceros.txt', () => {
   });
 
   it('el texto generado coincide, salvo versiones, con el archivo publicado', () => {
-    const strip = (text: string) => text.replace(/^(\S+) \S+ — /gm, '$1 — ');
+    // Quita la versión de las líneas del índice («  - zustand 5.0.16 — MIT») y de los encabezados
+    // («zustand 5.0.16 — licencia: MIT»): una actualización de Dependabot no debe poner el test en rojo
+    const strip = (text: string) => text.replace(/^(\s*(?:- )?\S+) \S+ — /gm, '$1 — ');
     expect(strip(renderText(packages))).toBe(strip(file));
   });
 });
