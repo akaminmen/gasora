@@ -158,6 +158,10 @@ test.describe('foco y enlace de salto', () => {
   }) => {
     test.skip(browserName === 'webkit', NO_TAB_ON_LINKS);
     await page.goto('/acerca');
+    // La pantalla (trozo cargado bajo demanda) debe estar pintada y sin foco antes de tabular; si no,
+    // el primer Tab puede caer en un documento a medio montar.
+    await expect(page.getByRole('heading', { level: 1, name: 'Acerca de' })).toBeVisible();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Saltar al contenido' });
     await expect(skip).toBeFocused();

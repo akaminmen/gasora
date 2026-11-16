@@ -13,9 +13,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Tiempos de referencia (mediciones de las ejecuciones del 03 al 11/11/2026, ver docs/operacion.md):
+#  - npm ci: 35–60 s · build y tests unitarios: < 10 s en total
+#  - instalar los navegadores: 15–120 s lo normal, y hasta 650 s cuando los espejos de apt van lentos
+#  - tests e2e: 11–15 min con ≈ 900 pruebas; con las ≈ 1.260 actuales se estiman 16–22 min
+#  - ejecución completa que acabó bien: 13–27 min
+# El fallo del 11/11/2026 (sin resolución de nombres en el runner) dejó el job colgado 2 h 9 min: los
+# límites de abajo evitan que una red caída bloquee la ejecución.
 jobs:
   quality:
     runs-on: ubuntu-latest
+    # Peor caso razonable: 10 min de instalación + 1 de npm ci + 25 de e2e + margen
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -34,14 +43,49 @@ jobs:
       - run: npm run check:build
       # Logos de public/brands/: nombres, SVG de hasta 8 KB sin scripts ni referencias externas
       - run: npm run brands:check
+      # Navegadores de Playwright: se guardan entre ejecuciones (la descarga es lo más lento). Las
+      # dependencias del sistema (apt) se instalan siempre, con reintentos, en el paso siguiente.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # apt reintenta las descargas y no se queda esperando a un servidor que no responde
+      - name: Configurar reintentos de apt
+        run: |
+          printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-reintentos
       # Chromium para todo; Firefox y WebKit para layout, accesibilidad y teclado
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Instalar navegadores de Playwright (con reintentos)
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 360 npx playwright install --with-deps chromium firefox webkit; then
+              exit 0
+            fi
+            echo "::warning::Intento $attempt de 3 de instalar los navegadores fallido (red del runner); se reintenta"
+            sleep $((attempt * 20))
+            sudo apt-get update || true
+          done
+          echo "::error::No se pudieron instalar los navegadores tras 3 intentos"
+          exit 1
       - run: npm run test:e2e
+        # Con CI=true Playwright repite una vez cada prueba que falla y muestra las que pasan a la
+        # segunda como «flaky» (playwright.config.ts)
+        timeout-minutes: 35
+      # Informe y trazas de lo que falló, para ver la causa sin repetir la ejecución
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: resultados-e2e
+          path: test-results
+          retention-days: 7
+          if-no-files-found: ignore
 
   # Prueba contra los servidores reales de OpenFreeMap (estilos y atribución). Aparte y sin bloquear:
   # si ese servicio externo falla o va lento, la integración no se rompe.
   map-live:
     runs-on: ubuntu-latest
+    # Normal: 1–4 min. Si algo se cuelga, no debe ocupar el runner más de un cuarto de hora.
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -50,5 +94,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Configurar reintentos de apt
+        run: |
+          printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-reintentos
+      - name: Instalar Chromium (con reintentos)
+        timeout-minutes: 8
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 150 npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            echo "::warning::Intento $attempt de 3 de instalar Chromium fallido (red del runner); se reintenta"
+            sleep $((attempt * 20))
+            sudo apt-get update || true
+          done
+          echo "::error::No se pudo instalar Chromium tras 3 intentos"
+          exit 1
       - run: npm run test:e2e:live

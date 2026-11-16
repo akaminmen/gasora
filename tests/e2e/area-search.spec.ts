@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { settleMap } from './map-support';
 
 /**
  * «Buscar en esta zona» (Bloque B). Mover el mapa no cambia los resultados; al terminar un gesto,
@@ -26,7 +27,7 @@ async function searchCp(page: Page) {
   await box.press('Enter');
   await expect(map(page)).toHaveAttribute('data-ready', 'true');
   await expect(page.getByTestId('station-card').first()).toBeVisible();
-  await page.waitForTimeout(900); // el encuadre inicial es programático
+  await settleMap(page); // el encuadre inicial es programático
 }
 
 /** El punto libre del lienzo (sin controles, pines ni hojas) más cercano a su centro horizontal. */
@@ -55,7 +56,7 @@ async function drag(page: Page, dx: number, dy: number) {
   await page.mouse.down();
   await page.mouse.move(from.x + dx, from.y + dy, { steps: 10 });
   await page.mouse.up();
-  await page.waitForTimeout(700);
+  await settleMap(page); // inercia incluida
 }
 
 /** Arrastra el mapa en una dirección hasta que se ofrece el botón. */
@@ -158,7 +159,7 @@ test.describe('escritorio', () => {
     await expect(live).toHaveAttribute('role', 'status');
     await expect(live).toHaveText(/^[\d.]+ gasolineras? en esta zona/);
     // El mapa se queda donde estaba (no se vuelve a encuadrar)
-    await page.waitForTimeout(900);
+    await settleMap(page);
     expect(await map(page).getAttribute('data-center')).toBe(centerBefore);
     // El radio es el del deslizador
     const radius = Number(await page.locator('input[type="range"]').first().inputValue());
@@ -176,7 +177,7 @@ test.describe('escritorio', () => {
   test('con el mapa muy alejado el radio se limita a 50 km y se indica', async ({ page }) => {
     await searchCp(page);
     for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Alejar' }).click();
-    await page.waitForTimeout(900);
+    await settleMap(page);
     await dragUntilOffered(page, -300, 0);
     await button(page).click();
     await expect(page.locator('input[type="range"]').first()).toHaveValue('50');
@@ -218,7 +219,7 @@ test.describe('escritorio', () => {
     await page.getByRole('button', { name: 'Usar mi ubicación' }).click();
     await expect(map(page)).toHaveAttribute('data-ready', 'true');
     await expect(page.getByTestId('station-card').first()).toBeVisible();
-    await page.waitForTimeout(900);
+    await settleMap(page);
     await dragUntilOffered(page);
     await button(page).click();
     await expect(page.getByTestId('results-title')).toHaveText('Gasolineras en esta zona del mapa');
@@ -265,10 +266,15 @@ test.describe('móvil', () => {
     await expect(sheet(page)).toHaveAttribute('data-collapsed', 'false');
     const first = page.getByTestId('station-card').first();
     await expect(first).toBeVisible();
-    const sheetBox = (await sheet(page).boundingBox())!;
-    const firstBox = (await first.boundingBox())!;
-    // En la altura compacta se ve la cabecera con el precio más bajo y asoma la primera tarjeta
-    expect(firstBox.y).toBeLessThan(sheetBox.y + sheetBox.height - 16);
+    // En la altura compacta se ve la cabecera con el precio más bajo y asoma la primera tarjeta. La
+    // hoja termina su transición después de cambiar de altura: se espera a la geometría final.
+    await expect
+      .poll(async () => {
+        const sheetBox = (await sheet(page).boundingBox())!;
+        const firstBox = (await first.boundingBox())!;
+        return firstBox.y < sheetBox.y + sheetBox.height - 16;
+      })
+      .toBe(true);
     expect(await page.getByTestId('sheet-content').evaluate((el) => el.scrollTop)).toBe(0);
     await expect(page.getByTestId('results-summary')).toContainText(/Desde [\d,]+/);
     // Ordenadas por precio, la primera es la más barata: su precio es el de «Desde …»

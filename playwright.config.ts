@@ -18,8 +18,12 @@ export default defineConfig({
   // El mapa se dibuja con WebGL por software en Chromium sin interfaz: con varios workers va más lento.
   timeout: 45_000,
   expect: { timeout: 10_000 },
-  reporter: [['list']],
+  // En la CI (CI=true) una prueba que falla se repite una vez: si pasa, se informa como «flaky» (no se
+  // oculta) y el resto de fallos siguen siendo rojos. Las trazas de la repetición se guardan.
+  retries: process.env['CI'] ? 1 : 0,
+  reporter: process.env['CI'] ? [['list'], ['github']] : [['list']],
   use: {
+    trace: 'on-first-retry',
     baseURL: 'http://127.0.0.1:4173',
     locale: 'es-ES',
     timezoneId: 'Europe/Madrid',

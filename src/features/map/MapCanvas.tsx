@@ -314,6 +314,10 @@ export default function MapCanvas(props: MapCanvasProps) {
       container.dataset['zoom'] = map.getZoom().toFixed(2);
       container.dataset['center'] = `${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
     };
+    // `data-moving`: el mapa se está moviendo (gesto, inercia o animación). Los tests esperan a que
+    // termine en lugar de contar milisegundos.
+    map.on('movestart', () => (container.dataset['moving'] = 'true'));
+    map.on('moveend', () => delete container.dataset['moving']);
     map.on('moveend', publishView);
     map.on('moveend', updatePins);
     map.on('sourcedata', (event) => {

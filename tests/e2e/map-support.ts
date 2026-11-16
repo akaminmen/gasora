@@ -19,3 +19,25 @@ export async function waitForMap(page: Page): Promise<void> {
     throw new Error('El mapa no está disponible (¿WebGL?)');
   }
 }
+
+/**
+ * Espera a que el mapa deje de moverse: sin `data-moving` y con el mismo encuadre en tres lecturas
+ * seguidas (el encuadre programático empieza un instante después de que aparezcan las tarjetas).
+ */
+export async function settleMap(page: Page): Promise<void> {
+  const map = page.getByTestId('map');
+  let last = '';
+  let steady = 0;
+  await expect
+    .poll(
+      async () => {
+        const moving = await map.getAttribute('data-moving');
+        const view = `${await map.getAttribute('data-zoom')}|${await map.getAttribute('data-center')}`;
+        steady = moving === null && view === last ? steady + 1 : 0;
+        last = view;
+        return steady;
+      },
+      { intervals: [120], timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(3);
+}
