@@ -1,21 +1,25 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { VitePWA } from 'vite-plugin-pwa';
-import { contentHash } from './scripts/brand-hash';
-import { E2E_LOGOS } from './scripts/e2e-logos';
+import { contentHash } from './scripts/brand-hash.ts';
+import { E2E_LOGOS } from './scripts/e2e-logos.ts';
 import {
   BRANDS_URL,
   FONTS_URL,
   MAX_CACHED_TILES,
   STYLE_URL,
   TILES_URL,
-} from './scripts/pwa-caching';
+} from './scripts/pwa-caching.ts';
+import { renderNotFoundPage, renderStaticPage } from './scripts/static-pages.ts';
+import { PUBLIC_PATHS, STATIC_PAGES } from './src/lib/page-meta.ts';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { version } from './package.json' with { type: 'json' };
+import pkg from './package.json' with { type: 'json' };
+
+const { version } = pkg;
 
 // Con el dominio propio (gasora.es) la app vive en la raíz: el workflow define GASORA_BASE=/.
 // Si volviera a una subruta (/<repo>/), se cambian GASORA_BASE y GASORA_SITE (ADR 017).
@@ -29,7 +33,6 @@ const owner = process.env['GITHUB_REPOSITORY_OWNER']?.toLowerCase() ?? 'akaminme
 const site =
   process.env['GASORA_SITE'] ??
   (base === '/' ? 'https://gasora.es/' : `https://${owner}.github.io${base}`);
-const PUBLIC_PAGES = ['', 'favoritos', 'calculadora', 'instalar', 'acerca'];
 
 /**
  * Escribe en `index.html` el nombre con hash del fichero de estaciones (`stations.{hash}.json`,
@@ -137,7 +140,7 @@ function seoFiles(): Plugin {
         source: `${JSON.stringify({ sha: process.env['GITHUB_SHA'] ?? 'local', version, site })}
 `,
       });
-      const urls = PUBLIC_PAGES.map((page) => `  <url><loc>${site}${page}</loc></url>`);
+      const urls = PUBLIC_PATHS.map((page) => `  <url><loc>${site}${page}</loc></url>`);
       this.emitFile({
         type: 'asset',
         fileName: 'sitemap.xml',
@@ -153,17 +156,26 @@ function seoFiles(): Plugin {
   };
 }
 
-/** GitHub Pages sirve 404.html en las rutas desconocidas: copiar index.html permite los enlaces /e/:id. */
-function spaFallback(): Plugin {
+/**
+ * GitHub Pages no reescribe rutas: `/favoritos` se sirve con el fichero `favoritos.html` (estado 200,
+ * sin redirección) y lo que no es un fichero recibe `404.html` con estado 404. Por eso cada pantalla
+ * pública tiene su HTML (con título y canónica propios) y `404.html` queda para `/e/:id` y las rutas
+ * desconocidas, con `noindex` (ADR 019).
+ */
+function staticPages(): Plugin {
   let outDir = 'dist';
   return {
-    name: 'gasora-spa-fallback',
+    name: 'gasora-static-pages',
     apply: 'build',
     configResolved(config) {
       outDir = config.build.outDir;
     },
     closeBundle() {
-      copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));
+      const index = readFileSync(resolve(outDir, 'index.html'), 'utf8');
+      for (const page of STATIC_PAGES) {
+        writeFileSync(resolve(outDir, `${page.path}.html`), renderStaticPage(index, page, site));
+      }
+      writeFileSync(resolve(outDir, '404.html'), renderNotFoundPage(index));
     },
   };
 }
@@ -228,7 +240,14 @@ export default defineConfig(({ mode }) => ({
         // La aplicación entera (incluido el mapa) se guarda al instalar para que funcione sin red
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,webp,ico,webmanifest}'],
         // Los logos de marca se guardan al usarse (runtimeCaching), no en la precarga
-        globIgnores: ['**/og-image.png', '**/404.html', 'data/**', 'brands/**'],
+        globIgnores: [
+          '**/og-image.png',
+          '**/404.html',
+          // Las pantallas estáticas son copias de index.html: navigateFallback ya las cubre
+          ...STATIC_PAGES.map((page) => `${page.path}.html`),
+          'data/**',
+          'brands/**',
+        ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         manifestTransforms: [stableIndexRevision],
@@ -295,7 +314,7 @@ export default defineConfig(({ mode }) => ({
       },
     }),
     seoFiles(),
-    spaFallback(),
+    staticPages(),
     brandFiles(mode),
     stationsHint(mode),
     outputDir(),

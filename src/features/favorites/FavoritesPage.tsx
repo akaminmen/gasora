@@ -2,6 +2,8 @@ import { Heart, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useMemo } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { pageMeta } from '../../lib/page-meta';
 import { Button, LinkButton } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
 import { EmptyState, ErrorState, StationCardSkeleton } from '../../components/ui/Feedback';
@@ -65,6 +67,7 @@ function PlainRow({
 
 /** Favoritos (F8): guardados en `gasora:favorites:v1`, con su precio actual. */
 export function FavoritesPage() {
+  usePageMeta(pageMeta('favoritos').title, pageMeta('favoritos').description);
   const ids = useFavoritesStore((s) => s.ids);
   // Sin favoritos no hace falta ningún dato
   const { state, retry } = useGasoraData({ defer: ids.length === 0 });

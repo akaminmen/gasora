@@ -28,6 +28,8 @@ La web se publicó en `https://akaminmen.github.io/gasora/`, una subruta del dom
 
 ## Enlaces profundos
 
+> **Actualizado el 16/11/2026 ([ADR 019](019-rutas-con-estado-200-ci-robusto-y-avisos.md)):** `/favoritos`, `/calculadora`, `/instalar` y `/acerca` ya no pasan por `404.html`: el build publica un `.html` por pantalla y GitHub Pages los sirve con estado 200. Lo de abajo sigue valiendo para `/e/<id>` y las rutas desconocidas.
+
 `/favoritos`, `/calculadora`, `/acerca` y `/e/<id>` no son ficheros: GitHub Pages responde con `404.html` (copia de `index.html`, con estado 404) y la aplicación resuelve la ruta. Con la base `/` los ficheros se piden con rutas absolutas desde la raíz, así que funcionan en cualquier profundidad. `tests/e2e/deep-links.spec.ts` reproduce ese comportamiento con un servidor que devuelve `404.html` con estado 404, y comprueba la visita directa, la recarga y que no haya ningún fichero con 404.
 
 ## Qué le pasa a quien ya tenía la web

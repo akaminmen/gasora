@@ -1,6 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PUBLIC_PATHS, STATIC_PAGES } from '../src/lib/page-meta.ts';
+import { renderNotFoundPage, renderStaticPage } from './static-pages.ts';
 
 /**
  * Comprueba el build de producción (dist/): la galería /ui-kit es solo para desarrollo y tests, así
@@ -29,7 +31,9 @@ const [index, notFound] = await Promise.all([
   readFile(join(dist, '404.html'), 'utf8').catch(() => null),
 ]);
 if (notFound === null) problems.push('Falta dist/404.html (fallback de GitHub Pages)');
-else if (notFound !== index) problems.push('dist/404.html no es copia de dist/index.html');
+else if (notFound !== renderNotFoundPage(index)) {
+  problems.push('dist/404.html no es dist/index.html con noindex');
+}
 
 // PWA y SEO
 const exists = async (file: string) =>
@@ -105,11 +109,37 @@ if (!/^stations\.[0-9a-f]+\.json$/.test(hint) || !(await exists(`data/${hint}`))
   problems.push('dist/index.html no lleva el nombre del fichero de estaciones (gasora-stations)');
 }
 
+// Pantallas públicas: cada una con su HTML (estado 200 en GitHub Pages) y en el sitemap; nada más
+const publishedSite = version.site ?? '';
+for (const page of STATIC_PAGES) {
+  const html = await readFile(join(dist, `${page.path}.html`), 'utf8').catch(() => null);
+  if (html === null)
+    problems.push(`Falta dist/${page.path}.html (la ruta /${page.path} daría 404)`);
+  else if (html !== renderStaticPage(index, page, publishedSite)) {
+    problems.push(
+      `dist/${page.path}.html no coincide con index.html y los metadatos de la pantalla`,
+    );
+  }
+  if (precache.includes(`${page.path}.html`)) {
+    problems.push(
+      `dist/sw.js guarda ${page.path}.html en la precarga (navigateFallback ya lo cubre)`,
+    );
+  }
+}
+const sitemap = await readFile(join(dist, 'sitemap.xml'), 'utf8').catch(() => '');
+const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+const expectedUrls = PUBLIC_PATHS.map((path) => `${publishedSite}${path}`);
+if (JSON.stringify(sitemapUrls) !== JSON.stringify(expectedUrls)) {
+  problems.push(
+    `dist/sitemap.xml no lista exactamente las pantallas públicas: ${sitemapUrls.join(', ')}`,
+  );
+}
+
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exitCode = 1;
 } else {
   console.log(
-    'Build de producción correcto: sin /ui-kit, con 404.html, PWA y ficheros para buscadores.',
+    'Build de producción correcto: sin /ui-kit, con 404.html, una página por pantalla pública, PWA y ficheros para buscadores.',
   );
 }

@@ -1,6 +1,8 @@
 import { Check, Minus, Plus, Search } from 'lucide-react';
 import { useId, useMemo, useState, type ChangeEvent } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { pageMeta } from '../../lib/page-meta';
 import { AnimatedAmount } from '../../components/ui/AnimatedAmount';
 import { LinkButton } from '../../components/ui/Button';
 import { FuelChip, FuelChips } from '../../components/ui/Controls';
@@ -23,6 +25,7 @@ function zoneName(place: Place): string {
 
 /** Calculadora de ahorro (F9): litros, combustible y con qué se compara la más barata. */
 export function CalculatorPage() {
+  usePageMeta(pageMeta('calculadora').title, pageMeta('calculadora').description);
   // Sin una búsqueda no hace falta ningún dato: se descargan cuando haya algo que calcular
   const searching = useSearchStore((s) => s.place !== null);
   const { state, retry } = useGasoraData({ defer: !searching });

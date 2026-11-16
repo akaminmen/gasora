@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { extractHtmlResources, extractManifestResources, judge } from '../../scripts/verify-site';
+import {
+  extractHtmlResources,
+  extractManifestResources,
+  extractSitemapUrls,
+  judge,
+} from '../../scripts/verify-site';
 
 const html = `<!doctype html><html><head>
 <link rel="canonical" href="https://gasora.es/" />
@@ -60,5 +65,16 @@ describe('judge', () => {
   it('rechaza un 404 y un HTML donde debería haber un script', () => {
     expect(judge({ url: 'u', expect: 'js' }, 404, 'text/html')).toBe('HTTP 404');
     expect(judge({ url: 'u', expect: 'js' }, 200, 'text/html')).toMatch(/en lugar de js/);
+  });
+});
+
+describe('extractSitemapUrls', () => {
+  it('lee las direcciones del sitemap', () => {
+    const xml =
+      '<urlset><url><loc>https://gasora.es/</loc></url><url><loc> https://gasora.es/favoritos </loc></url></urlset>';
+    expect(extractSitemapUrls(xml)).toEqual(['https://gasora.es/', 'https://gasora.es/favoritos']);
+  });
+  it('sin sitemap no hay direcciones', () => {
+    expect(extractSitemapUrls('')).toEqual([]);
   });
 });

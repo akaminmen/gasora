@@ -3,7 +3,9 @@ import { lazy, Suspense } from 'react';
 import { Button } from '../../components/ui/Button';
 import { FuelChips } from '../../components/ui/Controls';
 import { StationCardSkeleton } from '../../components/ui/Feedback';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import { formatDateTime } from '../../lib/format';
+import { HOME_META } from '../../lib/page-meta';
 import { useGasoraData } from '../../lib/useGasoraData';
 import { useLocationStore } from '../../stores/location';
 import { useSearchStore } from '../../stores/search';
@@ -55,6 +57,7 @@ function DataStatus() {
 
 /** Inicio: hero de primera visita; con una búsqueda o la ubicación en curso, los resultados. */
 export function HomePage() {
+  usePageMeta(HOME_META.title, HOME_META.description);
   useUrlSync();
   const place = useSearchStore((s) => s.place);
   const resolving = useSearchStore((s) => s.resolving);

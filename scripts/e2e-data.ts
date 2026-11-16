@@ -1,3 +1,4 @@
+import { STATIC_PAGES } from '../src/lib/page-meta.ts';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,7 +64,7 @@ if (isMain) {
   await writeDataset(out, dataset);
   // El build de los tests no conoce el fichero de estaciones (los datos se generan después):
   // se escribe aquí en el HTML, como hace el build de producción con los datos reales.
-  for (const page of ['index.html', '404.html']) {
+  for (const page of ['index.html', '404.html', ...STATIC_PAGES.map((p) => `${p.path}.html`)]) {
     const path = resolve(out, '..', page);
     const html = await readFile(path, 'utf8').catch(() => null);
     if (html === null) continue;

@@ -1,14 +1,15 @@
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { stations } from './data';
 
 /**
- * Enlaces profundos con la web en la raíz (gasora.es). GitHub Pages no tiene reescritura de rutas:
- * ante una ruta que no es un fichero devuelve 404.html con estado 404. Este servidor hace lo mismo
- * sobre `dist-base` (base /), así que se prueba el mismo camino que seguirá una visita directa o una
- * recarga: el navegador recibe 404.html (copia de index.html) y la aplicación resuelve la ruta.
+ * Enlaces profundos con la web en la raíz (gasora.es). Este servidor imita lo que se midió en GitHub
+ * Pages (ADR 019): una dirección sin extensión se sirve con el fichero `.html` del mismo nombre y
+ * estado 200 (`/favoritos` → `favoritos.html`, y `/404` → `404.html`); un directorio sin barra final
+ * redirige (301) a la dirección con barra; todo lo que no es un fichero recibe `404.html` con estado
+ * 404. Se prueba el mismo camino que una visita directa o una recarga sobre `dist-base` (base /).
  */
 const DIR = resolve(import.meta.dirname, '../../dist-base');
 const TYPES: Record<string, string> = {
@@ -23,12 +24,26 @@ const TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
+const isFile = (file: string) => existsSync(file) && statSync(file).isFile();
+
 function pagesLike(): Promise<{ server: Server; origin: string }> {
   const server = createServer((request, response) => {
     const path = decodeURIComponent(new URL(request.url ?? '/', 'http://x').pathname);
-    let file = join(DIR, path === '/' ? 'index.html' : path);
+    let file = join(DIR, path);
     let status = 200;
-    if (!file.startsWith(DIR) || !existsSync(file) || statSync(file).isDirectory()) {
+    if (!file.startsWith(DIR)) {
+      file = join(DIR, '404.html');
+      status = 404;
+    } else if (existsSync(file) && statSync(file).isDirectory()) {
+      if (!path.endsWith('/')) {
+        response.writeHead(301, { location: `${path}/` }).end();
+        return;
+      }
+      file = join(file, 'index.html');
+    } else if (!isFile(file) && isFile(`${file}.html`)) {
+      file = `${file}.html`;
+    }
+    if (!isFile(file)) {
       file = join(DIR, '404.html');
       status = 404;
     }
@@ -58,31 +73,79 @@ test.afterEach(async () => {
   await new Promise((done) => host.server.close(done));
 });
 
-const ROUTES = [
-  ['/favoritos', { level: 1, name: 'Favoritos' }],
-  ['/calculadora', { level: 1, name: 'Calculadora de ahorro' }],
-  ['/acerca', { level: 1, name: 'Acerca de' }],
+/** Pantallas con su propio HTML: estado 200, título y canónica propios. */
+const STATIC_ROUTES = [
+  ['/', { level: 1, name: /La gasolina más barata/ }, 'Gasora · La gasolina más barata, más cerca'],
+  ['/favoritos', { level: 1, name: 'Favoritos' }, 'Gasora · Favoritos'],
+  ['/calculadora', { level: 1, name: 'Calculadora de ahorro' }, 'Gasora · Calculadora de ahorro'],
+  ['/instalar', { level: 1, name: 'Instalar Gasora' }, 'Instalar Gasora'],
+  ['/acerca', { level: 1, name: 'Acerca de' }, 'Gasora · Acerca de'],
+] as const;
+
+/** Rutas que GitHub Pages sirve con 404.html (estado 404): la aplicación las resuelve igual. */
+const FALLBACK_ROUTES = [
+  ['/favoritos/', { level: 1, name: 'Favoritos' }],
   ['/ruta/que/no/existe', { name: 'Esta página no existe' }],
   ['/e/99999999', { name: /ya no está disponible/ }],
 ] as const;
 
+async function visit(
+  page: Page,
+  url: string,
+  heading: Parameters<Page['getByRole']>[1],
+  expectedStatus: number,
+) {
+  const failed: string[] = [];
+  page.on('response', (response) => {
+    // El único estado de error permitido es el del propio documento
+    if (response.status() >= 400 && response.request().resourceType() !== 'document') {
+      failed.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  const response = await page.goto(url);
+  expect(response?.status()).toBe(expectedStatus);
+  await expect(page.getByRole('heading', heading)).toBeVisible();
+  const reloaded = await page.reload();
+  expect(reloaded?.status()).toBe(expectedStatus);
+  await expect(page.getByRole('heading', heading)).toBeVisible();
+  expect(failed).toEqual([]);
+}
+
 test.describe('enlaces profundos con la base /', () => {
-  for (const [path, heading] of ROUTES) {
-    test(`${path}: visita directa y recarga, sin ficheros que den 404`, async ({ page }) => {
-      const failed: string[] = [];
-      page.on('response', (response) => {
-        // El único 404 permitido es el del propio documento (así funciona GitHub Pages)
-        if (response.status() >= 400 && response.request().resourceType() !== 'document') {
-          failed.push(`${response.status()} ${response.url()}`);
-        }
-      });
-      await page.goto(`${host.origin}${path}`);
-      await expect(page.getByRole('heading', heading)).toBeVisible();
-      await page.reload();
-      await expect(page.getByRole('heading', heading)).toBeVisible();
-      expect(failed).toEqual([]);
+  for (const [path, heading, title] of STATIC_ROUTES) {
+    test(`${path}: estado 200 con su título y canónica, visita directa y recarga`, async ({
+      page,
+    }) => {
+      await visit(page, `${host.origin}${path}`, heading, 200);
+      await expect(page).toHaveTitle(title);
+      const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+      expect(canonical).toBe(`https://gasora.es${path === '/' ? '/' : path}`);
+      await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
     });
   }
+
+  for (const [path, heading] of FALLBACK_ROUTES) {
+    test(`${path}: estado 404 con la aplicación (404.html con noindex), visita directa y recarga`, async ({
+      page,
+    }) => {
+      await visit(page, `${host.origin}${path}`, heading, 404);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    });
+  }
+
+  test('/404 se sirve con estado 200 en GitHub Pages: lleva noindex para que no se indexe', async ({
+    request,
+  }) => {
+    const response = await request.get(`${host.origin}/404`);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain('<meta name="robots" content="noindex" />');
+  });
+
+  test('un directorio sin barra final redirige a la dirección con barra', async ({ request }) => {
+    const response = await request.get(`${host.origin}/assets`, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers()['location']).toBe('/assets/');
+  });
 
   test('la ficha de una estación existente se abre desde su enlace', async ({ page }) => {
     const station = stations[0]!;

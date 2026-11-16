@@ -93,7 +93,20 @@ async function get(url: string): Promise<Response> {
   });
 }
 
-export async function verifySite(site: string): Promise<{ lines: string[]; failures: number }> {
+/** Direcciones `<loc>` de un sitemap. */
+export function extractSitemapUrls(xml: string): string[] {
+  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1] ?? '');
+}
+
+export interface VerifyOptions {
+  /** Commit que debe estar publicado (`version.json`); sirve para esperar a que la CDN lo sirva. */
+  expectSha?: string;
+}
+
+export async function verifySite(
+  site: string,
+  options: VerifyOptions = {},
+): Promise<{ lines: string[]; failures: number }> {
   const lines: string[] = [];
   let failures = 0;
   const report = (ok: boolean, text: string) => {
@@ -160,10 +173,35 @@ export async function verifySite(site: string): Promise<{ lines: string[]; failu
     report(!problem, `${check.url}${problem ? ` → ${problem}` : ''}`);
   }
 
+  // Cada dirección del sitemap debe responder 200 con HTML (no un 404 con la aplicación dentro)
+  const sitemap = await get(new URL('sitemap.xml', pageUrl).href)
+    .then((r) => (r.ok ? r.text() : ''))
+    .catch(() => '');
+  const pages = extractSitemapUrls(sitemap);
+  report(pages.length > 0, `sitemap.xml: ${pages.length} direcciones`);
+  for (const url of pages) {
+    const response = await get(url).catch((error: unknown) => error);
+    const problem =
+      response instanceof Response
+        ? judge(
+            { url, expect: 'html' },
+            response.status,
+            response.headers.get('content-type') ?? '',
+          )
+        : `no se pudo descargar (${String(response)})`;
+    report(!problem, `${url}${problem ? ` → ${problem}` : ''}`);
+  }
+
   // La dirección con la que se compiló debe ser la que se visita
   const version = await get(new URL('version.json', pageUrl).href)
-    .then((r) => r.json() as Promise<{ site?: string }>)
+    .then((r) => r.json() as Promise<{ site?: string; sha?: string }>)
     .catch(() => null);
+  if (options.expectSha) {
+    report(
+      version?.sha === options.expectSha,
+      `version.json: commit ${version?.sha?.slice(0, 7) ?? '—'} (se espera ${options.expectSha.slice(0, 7)})`,
+    );
+  }
   if (version?.site) {
     report(
       new URL(version.site).origin === new URL(pageUrl).origin,
@@ -175,7 +213,9 @@ export async function verifySite(site: string): Promise<{ lines: string[]; failu
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const site = (process.argv[2] ?? process.env['SITE_URL'] ?? DEFAULT_SITE).replace(/\/?$/, '/');
-  const { lines, failures } = await verifySite(site);
+  const { lines, failures } = await verifySite(site, {
+    expectSha: process.env['EXPECT_SHA'] || undefined,
+  });
   console.log(lines.join('\n'));
   if (failures) {
     console.error(`\n${failures} comprobación(es) fallida(s) en ${site}`);

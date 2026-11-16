@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { pageMeta } from '../../lib/page-meta';
 import {
   useDetectedPlatform,
   useStandalone,
@@ -16,9 +17,8 @@ import { usePwaStore } from '../../pwa/store';
  * el 11/11/2026; fuentes en docs/fuentes-instalacion.md). El dispositivo detectado solo se destaca:
  * todas las secciones quedan visibles.
  */
-export const INSTALL_TITLE = 'Instalar Gasora';
-export const INSTALL_DESCRIPTION =
-  'Cómo instalar Gasora en el iPhone, iPad, Android y el ordenador: pasos para Safari, Chrome, Edge, Samsung Internet y Firefox.';
+export const INSTALL_TITLE = pageMeta('instalar').title;
+export const INSTALL_DESCRIPTION = pageMeta('instalar').description;
 
 function Browser({
   id,
@@ -119,6 +119,7 @@ export function InstallPage() {
           guardados en ese dispositivo y avisa de que pueden no estar al día; del mapa solo se ven
           las zonas que ya habías mirado. Los favoritos y los ajustes se guardan en cada
           dispositivo, y una copia instalada desde otro navegador no comparte datos con las demás.
+          Instalar no cambia lo que se guarda ni lo que se envía: está explicado en «Acerca de».
         </p>
 
         {(installed || standalone) && (
