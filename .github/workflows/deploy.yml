@@ -40,6 +40,8 @@ jobs:
     outputs:
       # «false» solo si la comprobación dice que no hay nada nuevo; en cualquier otro caso, se despliega
       deploy: ${{ steps.compare.outputs.deploy != 'false' }}
+      # «true» cuando los datos publicados llevan demasiado tiempo sin actualizarse (ver `data-freshness`)
+      stale_alert: ${{ steps.freshness.outputs.alert }}
     env:
       # Dominio propio (gasora.es): la web vive en la raíz, no en /<repo>/
       GASORA_BASE: /
@@ -56,6 +58,12 @@ jobs:
       # Si no hay datos válidos ni respaldo, falla aquí y la web sigue con el último despliegue bueno.
       - run: npm run ingest
       - run: npm run check:data
+      # Antigüedad de los datos: si la API del Ministerio falla, la ingesta conserva el último dato bueno
+      # y la ejecución sale en verde. Este paso solo mide; el trabajo `data-freshness` (al final) es el
+      # que marca la ejecución como fallida, para no impedir el despliegue con datos de reserva.
+      - id: freshness
+        continue-on-error: true
+        run: npm run check:freshness
       # Compara lo ingerido con lo que sirve GitHub Pages. Se omite compilar y desplegar solo en
       # schedule o workflow_dispatch (sin force) con datos y código publicados iguales. Falla abierto:
       # si esta comprobación se rompe o no puede leer lo publicado, se despliega.
@@ -88,3 +96,58 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Comprobación de la web publicada. Solo si hubo despliegue. La CDN de GitHub Pages tarda uno o dos
+  # minutos en servir lo nuevo: se reintenta hasta que `version.json` lleva este commit. Nunca pone la
+  # ejecución en rojo: si no cuadra, deja un aviso y el resultado en el resumen.
+  verify-site:
+    needs: deploy
+    if: ${{ needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - id: verify
+        name: Verificar la web publicada (con reintentos)
+        continue-on-error: true
+        env:
+          SITE_URL: https://gasora.es/
+          EXPECT_SHA: ${{ github.sha }}
+        run: |
+          ok=false
+          for attempt in 1 2 3 4 5 6; do
+            if npm run verify:site > verify.log 2>&1; then ok=true; break; fi
+            echo "Intento $attempt de 6: la web publicada aún no cuadra; se espera 40 s"
+            sleep 40
+          done
+          cat verify.log
+          {
+            if [ "$ok" = true ]; then echo '## ✅ Web publicada verificada'; else echo '## ⚠ La web publicada no pasa la verificación'; fi
+            echo
+            echo '```'
+            cat verify.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ok" != true ]; then
+            echo "::warning title=Verificación de la web::npm run verify:site falla tras 6 intentos; revisa el resumen de la ejecución"
+            exit 1
+          fi
+
+  # Aviso de datos sin actualizar. Se ejecuta al final y falla (rojo) solo si la ingesta lleva más de
+  # 6 h conservando el dato anterior; así GitHub envía el correo de fallo al propietario. El despliegue
+  # y el resto de trabajos ya han terminado (o se han omitido) y no se ven afectados. Para no enviar un
+  # correo cada 15 minutos, `check:freshness` solo lo pide al cruzar el umbral y una vez cada 24 h.
+  data-freshness:
+    needs: [build, deploy]
+    if: ${{ always() && needs.build.result == 'success' && needs.build.outputs.stale_alert == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          echo "::error title=Datos del Ministerio sin actualizar::La ingesta lleva más de 6 horas conservando el último dato bueno. Revisa el paso «Ingesta» (API del Ministerio) en esta ejecución."
+          exit 1

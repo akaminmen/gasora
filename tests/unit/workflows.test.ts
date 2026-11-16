@@ -19,16 +19,20 @@ interface Workflow {
   jobs: Record<
     string,
     {
-      needs?: string;
+      needs?: string | string[];
       if?: string;
+      'timeout-minutes'?: number;
+      'continue-on-error'?: boolean;
       outputs?: Record<string, string>;
       steps?: {
         id?: string;
+        name?: string;
         if?: string;
         run?: string;
         uses?: string;
         env?: Record<string, string>;
         'continue-on-error'?: boolean;
+        'timeout-minutes'?: number;
       }[];
     }
   >;
@@ -49,7 +53,7 @@ describe('deploy.yml', () => {
     expect(deploy.name).toBe('Ingesta y despliegue');
     expect(deploy.on.push?.branches).toEqual(['main']);
     expect(deploy.on.workflow_dispatch).toBeDefined();
-    expect(Object.keys(deploy.jobs)).toEqual(['build', 'deploy']);
+    expect(Object.keys(deploy.jobs)).toEqual(['build', 'deploy', 'verify-site', 'data-freshness']);
     expect(deploy.jobs['deploy']?.needs).toBe('build');
   });
 
@@ -150,6 +154,61 @@ describe('deploy.yml', () => {
     });
   });
 
+  describe('aviso de datos sin actualizar', () => {
+    const steps = deploy.jobs['build']?.steps ?? [];
+    const freshness = steps.find((step) => step.id === 'freshness');
+    const job = deploy.jobs['data-freshness']!;
+
+    it('mide la antigüedad tras validar los datos y nunca detiene el despliegue', () => {
+      expect(freshness?.run).toBe('npm run check:freshness');
+      expect(freshness?.['continue-on-error']).toBe(true);
+      expect(freshness?.if).toBeUndefined();
+      const at = (text: string) => steps.findIndex((step) => step.run === text);
+      expect(steps.indexOf(freshness!)).toBeGreaterThan(at('npm run check:data'));
+      // El despliegue sigue dependiendo solo de «build» y de su salida «deploy»
+      expect(deploy.jobs['deploy']?.needs).toBe('build');
+      expect(deploy.jobs['build']?.outputs?.['stale_alert']).toContain(
+        'steps.freshness.outputs.alert',
+      );
+    });
+
+    it('el trabajo final falla solo si hay alerta y no depende de que el despliegue haya ocurrido', () => {
+      expect(job.needs).toEqual(['build', 'deploy']);
+      expect(job.if).toContain('always()');
+      expect(job.if).toContain("needs.build.result == 'success'");
+      expect(job.if).toContain("needs.build.outputs.stale_alert == 'true'");
+      const run = (job.steps ?? []).map((step) => step.run ?? '').join(' ');
+      expect(run).toContain('exit 1');
+    });
+  });
+
+  describe('verificación de la web publicada', () => {
+    const job = deploy.jobs['verify-site']!;
+    const verify = (job.steps ?? []).find((step) => step.id === 'verify');
+
+    it('solo se ejecuta tras un despliegue correcto', () => {
+      expect(job.needs).toBe('deploy');
+      expect(job.if).toContain("needs.deploy.result == 'success'");
+    });
+
+    it('no pone la ejecución en rojo, reintenta y espera al commit publicado', () => {
+      expect(verify?.['continue-on-error']).toBe(true);
+      expect(verify?.env?.['SITE_URL']).toBe('https://gasora.es/');
+      expect(verify?.env?.['EXPECT_SHA']).toBe('${{ github.sha }}');
+      expect(verify?.run).toContain('npm run verify:site');
+      expect(verify?.run).toMatch(/for attempt in 1 2 3 4 5 6/);
+      expect(verify?.run).toContain('GITHUB_STEP_SUMMARY');
+      expect(verify?.run).toContain('::warning');
+    });
+  });
+
+  it('todos los trabajos tienen un límite de tiempo', () => {
+    for (const [name, job] of Object.entries(deploy.jobs)) {
+      if (name === 'build' || name === 'deploy') continue; // los de siempre, con el límite por defecto
+      expect(job['timeout-minutes'], name).toBeGreaterThan(0);
+    }
+  });
+
   it('la ingesta va antes de la compilación y del despliegue', () => {
     const runs = (deploy.jobs['build']?.steps ?? []).map((s) => s.run ?? s.uses ?? '');
     const at = (text: string) => runs.findIndex((r) => r.includes(text));
@@ -162,6 +221,29 @@ describe('deploy.yml', () => {
 
 describe('ci.yml', () => {
   const ci = load('ci.yml');
+
+  it('cada trabajo y cada paso largo tienen límite de tiempo (una red caída no cuelga el trabajo)', () => {
+    expect(ci.jobs['quality']?.['timeout-minutes']).toBe(45);
+    expect(ci.jobs['map-live']?.['timeout-minutes']).toBe(15);
+    const e2e = (ci.jobs['quality']?.steps ?? []).find((step) => step.run === 'npm run test:e2e');
+    expect(e2e?.['timeout-minutes']).toBe(35);
+  });
+
+  it('instala los navegadores con reintentos y sin acciones de terceros', () => {
+    for (const name of ['quality', 'map-live']) {
+      const install = (ci.jobs[name]?.steps ?? []).find((step) =>
+        (step.run ?? '').includes('playwright install'),
+      );
+      expect(install?.run, name).toContain('for attempt in 1 2 3');
+      expect(install?.run, name).toContain('timeout ');
+      expect(install?.['timeout-minutes'], name).toBeGreaterThan(0);
+    }
+    const uses = Object.values(ci.jobs).flatMap((job) =>
+      (job.steps ?? []).map((s) => s.uses ?? ''),
+    );
+    for (const action of uses.filter(Boolean)) expect(action).toMatch(/^actions\//);
+  });
+
   it('es un YAML válido y ejecuta las comprobaciones principales', () => {
     expect(Object.keys(ci.on)).toEqual(expect.arrayContaining(['push', 'pull_request']));
     const runs = (ci.jobs['quality']?.steps ?? []).map((s) => s.run ?? '');
