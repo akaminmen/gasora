@@ -19,7 +19,14 @@ test('sin cookies y sin peticiones a servidores ajenos (salvo OpenFreeMap)', asy
   });
 
   const station = someStation();
-  for (const path of ['/', '/favoritos', '/calculadora', '/acerca', `/e/${station.id}`]) {
+  for (const path of [
+    '/',
+    '/favoritos',
+    '/calculadora',
+    '/instalar',
+    '/acerca',
+    `/e/${station.id}`,
+  ]) {
     await page.goto(path);
     await expect(page.locator('main')).toBeVisible();
   }
@@ -30,4 +37,42 @@ test('sin cookies y sin peticiones a servidores ajenos (salvo OpenFreeMap)', asy
   // Lo único que se guarda en el dispositivo lleva el prefijo de la app
   const keys = await page.evaluate(() => Object.keys(localStorage));
   expect(keys.filter((key) => !key.startsWith('gasora:'))).toEqual([]);
+});
+
+test('lo que se guarda en el dispositivo es exactamente lo que explica «Acerca de»', async ({
+  page,
+}) => {
+  const station = someStation();
+  await page.goto('/');
+  await page.getByTestId('theme-toggle').click();
+  await page.goto('/calculadora');
+  await page.getByRole('group', { name: 'Tipo de combustible' }).getByRole('button').nth(2).click();
+  await page.getByRole('button', { name: 'Añadir 5 litros' }).click();
+  await page.goto(`/e/${station.id}`);
+  await page
+    .getByRole('button', { name: /en favoritos$/ })
+    .first()
+    .click();
+  const keys = (await page.evaluate(() => Object.keys(localStorage))).sort();
+  // Favoritos, combustible, tema y litros: los cuatro de la lista de «Acerca de»
+  expect(keys).toEqual([
+    'gasora:favorites:v1',
+    'gasora:fuel:v1',
+    'gasora:liters:v1',
+    'gasora:theme:v1',
+  ]);
+  await page.goto('/acerca');
+  const text = await page.getByTestId('about-privacy').innerText();
+  for (const word of [
+    /favoritos/,
+    /combustible/,
+    /tema/,
+    /litros/,
+    /OpenFreeMap/,
+    /dirección IP/,
+    /GitHub Pages/,
+    /ubicación/,
+  ]) {
+    expect(text).toMatch(word);
+  }
 });

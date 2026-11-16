@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PageColumn, PageHeader } from '../../components/PageHeader';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { pageMeta } from '../../lib/page-meta';
 import { LogoMark, Wordmark } from '../../components/ui/Logo';
 import { FUELS } from '../../lib/fuel-ids';
 import { FUEL_LABELS } from '../../lib/fuels';
@@ -70,6 +72,7 @@ function InfoCard({
 
 /** Acerca de: fuente, fecha, aviso legal, privacidad y exclusiones (F10). */
 export function AboutPage() {
+  usePageMeta(pageMeta('acerca').title, pageMeta('acerca').description);
   const { state } = useGasoraData({ defer: true });
   const data = state.status === 'ready' ? state.data : null;
 
@@ -168,15 +171,37 @@ export function AboutPage() {
           </p>
         </InfoCard>
 
-        <InfoCard
-          icon={<ShieldCheck width={20} height={20} aria-hidden />}
-          title="Sin cookies ni registro"
-        >
-          <p>
-            No usamos cookies, ni analítica de terceros, ni te pedimos cuenta. Tus favoritos y
-            preferencias (combustible, tema) se quedan en tu dispositivo. Tu ubicación nunca sale de
-            él.
-          </p>
+        <InfoCard icon={<ShieldCheck width={20} height={20} aria-hidden />} title="Privacidad">
+          <div data-testid="about-privacy" className="space-y-2">
+            <p>No usamos cookies, analítica, publicidad ni cuentas.</p>
+            <p>
+              <b>Lo que se guarda en tu dispositivo</b> (y no sale de él):
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>los códigos de tus favoritos (hasta 100);</li>
+              <li>
+                el combustible elegido, el tema claro u oscuro y los litros de la calculadora;
+              </li>
+              <li>
+                una copia de la aplicación, de los últimos precios, de los logos y de las partes del
+                mapa que has mirado, para abrirla sin conexión.
+              </li>
+            </ul>
+            <p>
+              <b>Tu ubicación</b> solo se usa en tu dispositivo para ordenar y medir distancias: no
+              se envía a ningún servidor de Gasora ni se escribe en la dirección de la página. Si
+              usas «Buscar en esta zona», la dirección sí incluye el centro del mapa, y quien reciba
+              ese enlace verá ese punto.
+            </p>
+            <p>
+              <b>Lo que sí reciben otros servidores:</b> el mapa se descarga de OpenFreeMap, que ve
+              tu dirección IP y las teselas que pides, es decir, la zona que miras (será la tuya si
+              centras el mapa en tu posición). La web está alojada en GitHub Pages, que ve tu
+              dirección IP y tu navegador, como cualquier servidor. Al pulsar «Cómo llegar» se abre
+              Google Maps, Apple Maps o Waze con las coordenadas de la gasolinera, y se rigen por su
+              propia política.
+            </p>
+          </div>
         </InfoCard>
 
         <section
