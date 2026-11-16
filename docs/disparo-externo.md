@@ -176,6 +176,78 @@ GitHub avisa por correo antes de que caduque un token personal. Apunta además l
 3. Comprueba que funciona (ver «Operación»).
 4. Borra el token viejo en GitHub (**Delete**).
 
+### Autorreparación diaria contra el límite de 60 días (propuesta, sin desplegar)
+
+**Qué dice la documentación de GitHub** (consultada el 16/11/2026, [Disabling and enabling a workflow](https://docs.github.com/en/actions/using-workflows/disabling-and-enabling-a-workflow)): «In a public repository, scheduled workflows are automatically disabled when no repository activity has occurred in 60 days». **No dice qué cuenta como actividad**, ni qué responde `workflow_dispatch` a un workflow desactivado (no se ha podido probar sin esperar 60 días). Se puede reactivar con «Enable workflow» en la pestaña Actions, `gh workflow enable deploy.yml` o la API REST (`PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/enable`, respuesta `204`; `workflow_id` puede ser el nombre del archivo; la página de la API no indica el permiso de un token de grano fino).
+
+**Si no está claro** (lo es): no hay que depender de adivinar qué cuenta como actividad. Cuenta lo seguro (un `push` tuyo restablece el plazo) y se añade esta red de seguridad, que no usa commits.
+
+**Permiso exacto del token:** el mismo que ya tiene, **Actions: Read and write** (leer el estado del workflow necesita Actions: Read; reactivarlo y lanzarlo, Write). No hace falta ningún permiso más ni cambiar el token. La documentación de la API no concreta el permiso del endpoint `enable` para tokens de grano fino: si respondiera `403`, se comprueba en Settings → Developer settings que el token tiene **Actions: Read and write** y, si hace falta, se genera otro con el mismo ajuste.
+
+**Código para el Worker** (cópialo a `C:\dev\gasora-trigger`; no se despliega desde este repositorio). Añade una función y un reloj diario; el resto del Worker (sección anterior) no cambia:
+
+```ts
+const WORKFLOW_URL = 'https://api.github.com/repos/akaminmen/gasora/actions/workflows/deploy.yml';
+
+function githubHeaders(token: string): HeadersInit {
+  return {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'gasora-disparo',
+  };
+}
+
+/** Devuelve el estado del workflow y lo reactiva si no está «active». Lanza un error si no puede. */
+export async function ensureWorkflowEnabled(token: string): Promise<string> {
+  const info = await fetch(WORKFLOW_URL, { headers: githubHeaders(token) });
+  if (!info.ok) throw new Error(`No se pudo leer el workflow: HTTP ${info.status}`);
+  const { state } = (await info.json()) as { state: string };
+  if (state === 'active') return 'active';
+  // «disabled_inactivity», «disabled_manually»… Se reactiva siempre: el propietario lo quiere activo
+  const enable = await fetch(`${WORKFLOW_URL}/enable`, {
+    method: 'PUT',
+    headers: githubHeaders(token),
+  });
+  if (enable.status !== 204) {
+    throw new Error(`No se pudo reactivar el workflow (estaba «${state}»): HTTP ${enable.status}`);
+  }
+  return `reactivado (estaba «${state}»)`;
+}
+
+export default {
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    // Reloj diario («17 3 * * *»): solo comprueba el estado; los demás relojes lanzan la ingesta
+    if (controller.cron === '17 3 * * *') {
+      console.log(`workflow: ${await ensureWorkflowEnabled(env.GITHUB_TOKEN)}`);
+      return;
+    }
+    await dispatch(env.GITHUB_TOKEN);
+  },
+};
+```
+
+Y en `dispatch`, ante un `422` (el workflow desactivado no admite `workflow_dispatch`, sin verificar), un único reintento tras reactivarlo; sustituye la línea `if (response.status !== 429 && response.status < 500) break;` por:
+
+```ts
+if (response.status === 422 && attempt === 0) {
+  await ensureWorkflowEnabled(token); // si no puede, lanza el error y queda en los registros
+  continue;
+}
+if (response.status !== 429 && response.status < 500) break;
+```
+
+`wrangler.toml`: añade el tercer reloj (03:17 UTC, un minuto sin carga alta):
+
+```toml
+[triggers]
+crons = ["*/5 21-23,0 * * *", "*/15 1-20 * * *", "17 3 * * *"]
+```
+
+**Qué cambia:** el Worker deja de ser inútil si el `cron` de GitHub se desactiva. **Qué no resuelve:** un token caducado (el reloj diario también falla con `401`; ver «Cómo renovar el token») ni que el Worker mismo esté caído. **Notificación:** según la documentación de GitHub, el correo de una reactivación va a quien la hace; si el correo de fallos está activado, las ejecuciones lanzadas por el token te llegan a ti.
+
+**Mientras tanto:** una comprobación mensual (el día 1) con `gh workflow list` o `gh api repos/akaminmen/gasora/actions/workflows/deploy.yml --jq .state` (debe ser `active`).
+
 ## Opción 3: servicio externo de tareas programadas
 
 Servicios web gratuitos que lanzan una petición HTTP periódica (por ejemplo cron-job.org u otros equivalentes). Es la opción que menos mantenimiento pide, pero el token queda guardado en un tercero: por eso el token tiene que ser el mínimo de arriba, con caducidad, y no usarse para nada más.
