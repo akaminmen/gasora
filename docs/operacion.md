@@ -159,7 +159,7 @@ Contexto y límites en el [ADR 020](decisions/020-favicon-texto-inicial-y-metada
 
 - **Google Search Console** (propiedad de dominio `gasora.es`, verificada por DNS): «Inspección de URL» → `https://gasora.es/` → «Probar URL publicada» (debe decir «La URL está disponible para Google» y mostrar el HTML con el texto) → «Solicitar indexación». Sitemaps → `https://gasora.es/sitemap.xml` (5 direcciones). El favicon se refresca aparte y puede tardar **días o semanas**: no hay botón; comprueba <https://gasora.es/favicon.ico> y busca `site:gasora.es`.
 - **Bing Webmaster Tools:** añade el sitio (se puede importar desde Search Console), envía el sitemap y usa «Enviar direcciones URL» con las cinco pantallas. «Discovered but not crawled» significa que conoce la dirección y aún no la ha rastreado: suele resolverse con el tiempo.
-- **Comprobaciones tras un despliegue** (`npm run verify:site` ya las hace): las cinco direcciones del sitemap dan 200, el `<head>` declara los cinco iconos y el manifiesto, `robots.txt` permite todo.
+- **Comprobaciones tras un despliegue** (`npm run verify:site` ya las hace): las cinco direcciones del sitemap dan 200, el `<head>` declara los tres iconos de siempre y el manifiesto, `robots.txt` permite todo.
 - **Datos estructurados:** <https://validator.schema.org/> (Fetch URL) y <https://search.google.com/test/rich-results>; el segundo no mostrará resultado enriquecido de aplicación (falta `aggregateRating`/`review`, que no se inventan).
 
 ## Medir el rendimiento

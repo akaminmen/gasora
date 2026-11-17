@@ -1,6 +1,8 @@
 # 020 — Favicon, texto en el HTML inicial y metadatos para buscadores
 
-Estado: **implementada y verificada en local (Chromium, Firefox, WebKit); sin publicar. Lo que ven Google y Bing no se ha podido comprobar** · Fecha: 17/11/2026
+Estado: **texto inicial, metadatos y datos estructurados: implementados y publicados. Rediseño del favicon: REVERTIDO por decisión del usuario (17/11/2026). Lo que ven Google y Bing no se ha podido comprobar** · Fecha: 17/11/2026
+
+> **Reversión del favicon (17/11/2026).** El rediseño del favicon (pin blanco sobre cuadrado índigo, ICO de 16/32/48 px, PNG de 48 px, icono de iOS a sangre) se hizo y se subió **sin que el usuario lo aprobara**, y el usuario no lo aprobó: quiere conservar el icono de siempre. Se restauraron **byte a byte** (comprobado con sha256) `public/favicon.svg`, `public/favicon.ico` y `public/apple-touch-icon.png` desde el último commit con los iconos originales (`01ac113`), se eliminaron `public/favicon-48x48.png` y `public/logo-mark.svg`, y se devolvieron al estado anterior `scripts/make-icons.ts`, las tres etiquetas de icono del `<head>`, `includeAssets` de `vite.config.ts`, las comprobaciones de `check:build` y las pruebas de iconos. Los iconos de la PWA y la imagen para compartir nunca cambiaron y siguen idénticos. **Se conserva todo lo demás** (texto inicial, metadatos, Twitter, JSON-LD, `lastmod`, pruebas). La sección «Favicon» de abajo describe lo que se hizo y **ya no está vigente**; la mejora técnica queda como propuesta (sección «Propuesta de favicon, sin aplicar»). **Regla:** nada visible de la marca (logotipo, favicon, colores, tipografías, iconos, imágenes para compartir, apariencia) se cambia sin la aprobación previa del usuario.
 
 ## Problema
 
@@ -24,7 +26,7 @@ Estado: **implementada y verificada en local (Chromium, Firefox, WebKit); sin pu
 ### Causa más probable del icono gris
 
 1. **Que Google aún no haya procesado el favicon** del sitio nuevo (la causa más probable). La web pasó a `gasora.es` el 9–10/11/2026, hace una semana; Google refresca los favicons por separado y la documentación avisa de que puede tardar «días o semanas». Evidencia a favor: el icono está declarado en el `<head>` de la portada, responde 200 con el tipo correcto a los agentes de Google y de Bing y `robots.txt` no bloquea nada.
-2. **Debilidades reales que sí había** y que se corrigen: ICO sin 16 px y con un solo tamaño declarado, ningún PNG en múltiplo de 48 declarado en el `<head>` (Google recomienda un favicon cuadrado en múltiplo de 48 px) y una forma poco legible a 16 px sobre transparente.
+2. **Debilidades que había en los iconos** (observadas en la auditoría; **no se corrigen**, ver la reversión y la propuesta): ICO sin 16 px y con un solo tamaño declarado, ningún PNG en múltiplo de 48 declarado en el `<head>` (Google recomienda un favicon cuadrado en múltiplo de 48 px) y una forma poco legible a 16 px sobre transparente.
 3. **Descartado:** ruta con la base antigua `/gasora/` (los iconos usan rutas absolutas desde la raíz), tamaño inválido (todos válidos), `noindex` o bloqueo en `robots.txt`.
 
 **No se puede verificar desde aquí:** qué tiene hoy Google en su caché de favicons, ni cuándo lo recogerá; qué hace Bing. Hay que mirarlo en Search Console y en Bing Webmaster Tools (pasos manuales en `docs/STATUS.md`).
@@ -35,7 +37,7 @@ Significa que Bing conoce la dirección (por el sitemap o un enlace) y todavía 
 
 ## Parte B: decisiones
 
-### Favicon
+### Favicon (rediseño revertido: esta sección es histórica)
 
 - `public/favicon.svg`: **cuadrado** con esquinas redondeadas, fondo índigo `#4F46E5` y el **pin en blanco** (con el surtidor en índigo), sin las ondas: legible a 16 px. Medido por píxeles: el pin ocupa el 19 % del icono a 16 px, el 26 % a 32 px, con contraste blanco sobre índigo de 6,3:1. **No he visto la imagen** (revisión visual pendiente).
 - `public/logo-mark.svg`: el logotipo completo anterior (con ondas, transparente). Es la fuente de los iconos de la PWA y de la imagen para compartir, que **no cambian** (los PNG se regeneraron y son idénticos byte a byte).
@@ -74,10 +76,22 @@ Significa que Bing conoce la dirección (por el sitemap o un enlace) y todavía 
 ## Consecuencias
 
 - Los rastreadores que no ejecutan JavaScript ven un texto propio en español y los enlaces entre páginas; quien ejecuta JavaScript no nota ningún cambio.
-- El favicon cuadrado se distingue en pestañas pequeñas y en las listas de resultados; el logotipo completo se conserva para la PWA y para compartir.
+- El favicon vuelve a ser el de siempre; los iconos no cambian.
 - **No se garantiza** que Google cambie el icono ni que Bing rastree: depende de ellos.
 
 ## Cómo se revierte
 
 - Texto inicial: quitar el plugin `staticIntro()` de `vite.config.ts` (queda el marcador `<!--static-intro-->` vacío) y los marcadores de `index.html`.
-- Favicon: volver a poner el contenido de `logo-mark.svg` en `favicon.svg` y ejecutar `npm run icons`.
+- Favicon: ya revertido. Para reaplicar la propuesta de abajo haría falta la aprobación explícita del usuario (el commit del rediseño es `e2044a4`).
+
+## Propuesta de favicon, sin aplicar
+
+**Solo se haría con la aprobación explícita del usuario, viendo antes una muestra, y conservando el diseño original del pin** (el mismo dibujo, con sus colores y su fondo). La mejora técnica, que no cambia el dibujo:
+
+- Un `favicon.ico` con **16, 32 y 48 px** generados a partir del mismo `favicon.svg` original (hoy lleva 32 y 48).
+- Un `favicon-48x48.png` (Google recomienda un favicon cuadrado en múltiplo de 48 px) declarado en el `<head>`, y `sizes` en las etiquetas del SVG y del icono de iOS.
+- Las comprobaciones de `check:build` y de `seo.spec.ts` se ampliarían a esos tamaños.
+
+**Qué no se haría:** cambiar la forma, los colores, el fondo o las ondas del logotipo, ni recortarlo en un cuadrado. Si a 16 px el pin original se ve poco, **se propone al usuario y se espera**: no se decide aquí.
+
+**Lo que probablemente explica el icono gris no es el dibujo** sino que Google aún no ha reprocesado el favicon del sitio nuevo (ver «Causa más probable»); no hay ninguna garantía de que cambiar el icono lo arregle antes.
