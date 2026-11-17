@@ -49,7 +49,6 @@ for (const file of [
   'icons/icon-maskable-512.png',
   'apple-touch-icon.png',
   'favicon.ico',
-  'favicon-48x48.png',
   'og-image.png',
   'robots.txt',
   'sitemap.xml',
@@ -136,33 +135,17 @@ if (JSON.stringify(sitemapUrls) !== JSON.stringify(expectedUrls)) {
   );
 }
 
-// Iconos: declarados en el <head> de cada página, con el tamaño que dicen y servibles
-const pngSize = (data: Buffer) => ({ w: data.readUInt32BE(16), h: data.readUInt32BE(20) });
-const iconChecks: [string, number][] = [
-  ['favicon-48x48.png', 48],
-  ['icons/icon-192.png', 192],
-  ['apple-touch-icon.png', 180],
-];
-for (const [file, size] of iconChecks) {
-  const data = await readFile(join(dist, file)).catch(() => null);
-  if (!data) continue;
-  const got = pngSize(data);
-  if (got.w !== size || got.h !== size)
-    problems.push(`dist/${file} mide ${got.w}×${got.h}, no ${size}×${size}`);
+// Iconos (los de siempre; no se cambian sin aprobación del usuario): declarados en el <head> de cada
+// página y con el tamaño que dicen
+const png = (data: Buffer) => ({ w: data.readUInt32BE(16), h: data.readUInt32BE(20) });
+const apple = await readFile(join(dist, 'apple-touch-icon.png')).catch(() => null);
+if (apple && (png(apple).w !== 180 || png(apple).h !== 180)) {
+  problems.push('dist/apple-touch-icon.png no mide 180×180');
 }
-const ico = await readFile(join(dist, 'favicon.ico')).catch(() => Buffer.alloc(0));
-const icoSizes = Array.from(
-  { length: ico.length >= 6 ? ico.readUInt16LE(4) : 0 },
-  (_, i) => ico[6 + 16 * i] ?? 0,
-);
-if (icoSizes.join() !== '16,32,48')
-  problems.push(`dist/favicon.ico lleva los tamaños ${icoSizes.join(', ') || '—'}, no 16, 32 y 48`);
 const iconTags = [
-  '<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />',
-  '<link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />',
-  '<link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48" />',
-  '<link rel="icon" type="image/png" href="/icons/icon-192.png" sizes="192x192" />',
-  '<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />',
+  '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />',
+  '<link rel="icon" href="/favicon.ico" sizes="48x48" />',
+  '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />',
 ];
 
 // Texto en el HTML inicial (sin JavaScript), datos estructurados solo en la portada y noindex solo en 404.html

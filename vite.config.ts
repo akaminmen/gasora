@@ -236,7 +236,7 @@ export default defineConfig(({ mode }) => ({
       // El registro y las actualizaciones los gestiona src/pwa/register.ts (ADR 014)
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'favicon.ico', 'favicon-48x48.png', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Gasora',
         short_name: 'Gasora',
@@ -276,7 +276,6 @@ export default defineConfig(({ mode }) => ({
           ...STATIC_PAGES.map((page) => `${page.path}.html`),
           'data/**',
           'brands/**',
-          'logo-mark.svg',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,

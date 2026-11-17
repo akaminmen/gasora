@@ -130,23 +130,21 @@ test.describe('HTML inicial de cada pantalla (sin ejecutar JavaScript)', () => {
 });
 
 test.describe('iconos', () => {
-  test('todos los iconos declarados existen, con su tipo y su tamaño', async ({ request }) => {
+  // Los iconos de la marca son los de siempre (decisión del usuario, ADR 020): SVG, ICO de 32 y 48 px
+  // declarado como 48x48, e icono de iOS de 180 px. Nada de esto se cambia sin su aprobación.
+  test('los tres iconos declarados existen, con su tipo y su tamaño', async ({ request }) => {
     const page = await html(request, '');
     const tags = [...page.matchAll(/<link\s+rel="(?:icon|apple-touch-icon)"[^>]*>/g)].map(
       (m) => m[0],
     );
     const declared: Record<string, string> = {};
     for (const tag of tags) declared[attribute(tag, 'href')] = attribute(tag, 'sizes');
-    expect(Object.keys(declared).sort()).toEqual(
-      [
-        '/apple-touch-icon.png',
-        '/favicon-48x48.png',
-        '/favicon.ico',
-        '/favicon.svg',
-        '/icons/icon-192.png',
-      ].sort(),
-    );
-    for (const [href, sizes] of Object.entries(declared)) {
+    expect(declared).toEqual({
+      '/favicon.svg': '',
+      '/favicon.ico': '48x48',
+      '/apple-touch-icon.png': '',
+    });
+    for (const href of Object.keys(declared)) {
       const response = await request.get(`${host.origin}${href}`);
       expect(response.status(), href).toBe(200);
       const type = response.headers()['content-type'] ?? '';
@@ -155,17 +153,13 @@ test.describe('iconos', () => {
       if (href.endsWith('.svg')) {
         expect(type).toContain('image/svg+xml');
         expect(body.toString()).toMatch(/viewBox="0 0 48 48"/);
-        expect(sizes).toBe('any');
       } else if (href.endsWith('.ico')) {
         expect(type).toMatch(/image\/(vnd\.microsoft\.icon|x-icon)/);
         const count = body.readUInt16LE(4);
-        const entries = Array.from({ length: count }, (_, i) => body[6 + 16 * i]);
-        expect(entries).toEqual([16, 32, 48]);
-        expect(sizes).toBe('16x16 32x32 48x48');
+        expect(Array.from({ length: count }, (_, i) => body[6 + 16 * i])).toEqual([32, 48]);
       } else {
         expect(type).toContain('image/png');
-        const size = `${body.readUInt32BE(16)}x${body.readUInt32BE(20)}`;
-        expect(size, href).toBe(sizes);
+        expect([body.readUInt32BE(16), body.readUInt32BE(20)]).toEqual([180, 180]);
       }
     }
   });
