@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PUBLIC_PATHS, STATIC_PAGES } from '../src/lib/page-meta.ts';
+import { HOME_META, PUBLIC_PATHS, STATIC_PAGES } from '../src/lib/page-meta.ts';
 import { renderNotFoundPage, renderStaticPage } from './static-pages.ts';
 
 /**
@@ -49,6 +49,7 @@ for (const file of [
   'icons/icon-maskable-512.png',
   'apple-touch-icon.png',
   'favicon.ico',
+  'favicon-48x48.png',
   'og-image.png',
   'robots.txt',
   'sitemap.xml',
@@ -133,6 +134,72 @@ if (JSON.stringify(sitemapUrls) !== JSON.stringify(expectedUrls)) {
   problems.push(
     `dist/sitemap.xml no lista exactamente las pantallas públicas: ${sitemapUrls.join(', ')}`,
   );
+}
+
+// Iconos: declarados en el <head> de cada página, con el tamaño que dicen y servibles
+const pngSize = (data: Buffer) => ({ w: data.readUInt32BE(16), h: data.readUInt32BE(20) });
+const iconChecks: [string, number][] = [
+  ['favicon-48x48.png', 48],
+  ['icons/icon-192.png', 192],
+  ['apple-touch-icon.png', 180],
+];
+for (const [file, size] of iconChecks) {
+  const data = await readFile(join(dist, file)).catch(() => null);
+  if (!data) continue;
+  const got = pngSize(data);
+  if (got.w !== size || got.h !== size)
+    problems.push(`dist/${file} mide ${got.w}×${got.h}, no ${size}×${size}`);
+}
+const ico = await readFile(join(dist, 'favicon.ico')).catch(() => Buffer.alloc(0));
+const icoSizes = Array.from(
+  { length: ico.length >= 6 ? ico.readUInt16LE(4) : 0 },
+  (_, i) => ico[6 + 16 * i] ?? 0,
+);
+if (icoSizes.join() !== '16,32,48')
+  problems.push(`dist/favicon.ico lleva los tamaños ${icoSizes.join(', ') || '—'}, no 16, 32 y 48`);
+const iconTags = [
+  '<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />',
+  '<link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />',
+  '<link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48" />',
+  '<link rel="icon" type="image/png" href="/icons/icon-192.png" sizes="192x192" />',
+  '<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />',
+];
+
+// Texto en el HTML inicial (sin JavaScript), datos estructurados solo en la portada y noindex solo en 404.html
+const pages: [string, string, string][] = [
+  ['index.html', index, HOME_META.heading],
+  ...(await Promise.all(
+    STATIC_PAGES.map(async (page): Promise<[string, string, string]> => [
+      `${page.path}.html`,
+      await readFile(join(dist, `${page.path}.html`), 'utf8').catch(() => ''),
+      page.heading,
+    ]),
+  )),
+];
+for (const [file, html, heading] of pages) {
+  for (const tag of iconTags)
+    if (!html.includes(tag)) problems.push(`dist/${file} no declara: ${tag}`);
+  if (!html.includes(`<main class="static-intro">`) || !html.includes(`<h1>${heading}</h1>`)) {
+    problems.push(`dist/${file} no lleva el texto inicial con su h1 «${heading}»`);
+  }
+  if ((html.match(/<h1[ >]/g) ?? []).length !== 1)
+    problems.push(`dist/${file} no tiene exactamente un h1 en el HTML inicial`);
+  if (!/<noscript>[\s\S]*JavaScript[\s\S]*<\/noscript>/.test(html))
+    problems.push(`dist/${file} no lleva el bloque noscript`);
+  if (/name="robots"/.test(html))
+    problems.push(`dist/${file} lleva una etiqueta robots (solo 404.html la lleva)`);
+  const hasLd = html.includes('application/ld+json');
+  if (hasLd !== (file === 'index.html'))
+    problems.push(`dist/${file}: los datos estructurados solo van en la portada`);
+}
+if (notFound !== null && !/name="robots" content="noindex"/.test(notFound))
+  problems.push('dist/404.html no lleva noindex');
+const lastmods = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1] ?? '');
+if (
+  lastmods.length !== PUBLIC_PATHS.length ||
+  lastmods.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))
+) {
+  problems.push('dist/sitemap.xml: cada dirección debe llevar una lastmod AAAA-MM-DD');
 }
 
 if (problems.length) {

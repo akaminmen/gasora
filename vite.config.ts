@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,7 +14,7 @@ import {
   STYLE_URL,
   TILES_URL,
 } from './scripts/pwa-caching.ts';
-import { renderNotFoundPage, renderStaticPage } from './scripts/static-pages.ts';
+import { injectHome, renderNotFoundPage, renderStaticPage } from './scripts/static-pages.ts';
 import { PUBLIC_PATHS, STATIC_PAGES } from './src/lib/page-meta.ts';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -122,6 +123,31 @@ function brandFiles(mode: string): Plugin {
   };
 }
 
+/**
+ * Fecha (AAAA-MM-DD) del commit que se compila: es la `lastmod` del sitemap. Cambia cuando cambia el
+ * código o los textos y **no** con cada actualización de precios (los datos no están en las páginas
+ * del sitemap), así que no avisa a los buscadores de cambios que no existen.
+ */
+function lastModified(): string {
+  try {
+    const date = execSync('git log -1 --format=%cs', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  } catch {
+    // Sin git (descarga del código sin historial): se usa la fecha de la compilación
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Texto inicial y datos estructurados de la portada en `index.html` (ver `scripts/static-pages.ts`). */
+function staticIntro(): Plugin {
+  return {
+    name: 'gasora-static-intro',
+    transformIndexHtml: (html) => injectHome(html, site),
+  };
+}
+
 /** Sustituye %SITE_URL% en index.html y genera robots.txt y sitemap.xml con la dirección real. */
 function seoFiles(): Plugin {
   return {
@@ -140,7 +166,10 @@ function seoFiles(): Plugin {
         source: `${JSON.stringify({ sha: process.env['GITHUB_SHA'] ?? 'local', version, site })}
 `,
       });
-      const urls = PUBLIC_PATHS.map((page) => `  <url><loc>${site}${page}</loc></url>`);
+      const lastmod = lastModified();
+      const urls = PUBLIC_PATHS.map(
+        (page) => `  <url><loc>${site}${page}</loc><lastmod>${lastmod}</lastmod></url>`,
+      );
       this.emitFile({
         type: 'asset',
         fileName: 'sitemap.xml',
@@ -207,7 +236,7 @@ export default defineConfig(({ mode }) => ({
       // El registro y las actualizaciones los gestiona src/pwa/register.ts (ADR 014)
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'favicon-48x48.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Gasora',
         short_name: 'Gasora',
@@ -247,6 +276,7 @@ export default defineConfig(({ mode }) => ({
           ...STATIC_PAGES.map((page) => `${page.path}.html`),
           'data/**',
           'brands/**',
+          'logo-mark.svg',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
@@ -314,6 +344,7 @@ export default defineConfig(({ mode }) => ({
       },
     }),
     seoFiles(),
+    staticIntro(),
     staticPages(),
     brandFiles(mode),
     stationsHint(mode),

@@ -9,9 +9,12 @@
     />
     <meta name="theme-color" content="#4F46E5" />
     <link rel="canonical" href="%SITE_URL%" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Iconos: ICO multitamaño, SVG, PNG de 48 px (múltiplo de 48, como pide Google) y de 192 px, e icono de iOS -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Gasora" />
     <meta property="og:type" content="website" />
@@ -26,10 +29,52 @@
     <meta property="og:image" content="%SITE_URL%og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:alt" content="Gasora, la gasolina más barata, más cerca" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gasora · La gasolina más barata, más cerca" />
+    <meta
+      name="twitter:description"
+      content="Precios de carburantes de toda España en un mapa, con tu ubicación o por código postal. Datos abiertos del Ministerio."
+    />
+    <meta name="twitter:image" content="%SITE_URL%og-image.png" />
+    <meta name="twitter:image:alt" content="Gasora, la gasolina más barata, más cerca" />
+    <!--json-ld-->
+    <style>
+      /* Texto del HTML inicial (para quien no ejecuta JavaScript y para los rastreadores). Con JS se
+         oculta antes del primer pintado y la aplicación lo sustituye al arrancar. */
+      .js .static-intro {
+        display: none;
+      }
+      .static-intro {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 1.5rem 1rem;
+        font:
+          1rem/1.55 system-ui,
+          sans-serif;
+      }
+      .static-intro h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.75rem;
+        line-height: 1.2;
+      }
+      .static-intro p {
+        margin: 0 0 0.75rem;
+      }
+      .static-intro ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.25rem;
+        margin: 1rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+    </style>
     <script>
-      // Aplica el tema elegido antes del primer pintado para evitar el parpadeo.
+      // Marca que hay JavaScript (oculta el texto del HTML inicial) y aplica el tema elegido antes del
+      // primer pintado para evitar el parpadeo.
+      document.documentElement.classList.add('js');
       try {
         var t = localStorage.getItem('gasora:theme:v1');
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
@@ -55,11 +100,14 @@
     <title>Gasora · La gasolina más barata, más cerca</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--static-intro--></div>
     <noscript>
-      <p style="padding: 1rem; font-family: sans-serif">
-        Gasora necesita JavaScript para mostrar los precios y el mapa. Actívalo en tu navegador para
-        usarla.
+      <p
+        style="padding: 1rem; max-width: 40rem; margin: 0 auto; font-family: system-ui, sans-serif"
+      >
+        <strong>Gasora necesita JavaScript</strong> para mostrar los precios y el mapa. Actívalo en
+        tu navegador para usarla; mientras tanto puedes leer de qué trata y consultar las páginas de
+        arriba.
       </p>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>

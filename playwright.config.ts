@@ -35,7 +35,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Las pruebas contra servicios externos van aparte: playwright.live.config.ts
-      testIgnore: [/.*-live\.spec\.ts/, /(pwa|deep-links)\.spec\.ts/, /mobile-.*\.spec\.ts/],
+      testIgnore: [/.*-live\.spec\.ts/, /(pwa|deep-links|seo)\.spec\.ts/, /mobile-.*\.spec\.ts/],
     },
     {
       name: 'firefox',
@@ -65,7 +65,7 @@ export default defineConfig({
         baseURL: 'http://127.0.0.1:4174/',
         serviceWorkers: 'allow',
       },
-      testMatch: /(pwa|deep-links)\.spec\.ts/,
+      testMatch: /(pwa|deep-links|seo)\.spec\.ts/,
     },
   ],
   webServer: [
