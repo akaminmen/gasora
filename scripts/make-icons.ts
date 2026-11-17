@@ -4,24 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 /**
- * Genera los iconos de la app (PWA, iOS, favicon) y la imagen para compartir, renderizándolos con
- * Chromium. Los PNG se guardan en `public/` y se versionan: este script solo hay que volver a
- * ejecutarlo si cambia un logo (`npm run icons`). Dos fuentes:
- *  - `public/logo-mark.svg`: el logotipo completo (pin con surtidor y ondas), sobre transparente.
- *    De él salen los iconos de la PWA y la imagen para compartir.
- *  - `public/favicon.svg`: la versión para pestañas, cuadrada, con fondo índigo y el pin en blanco,
- *    sin las ondas (a 16 px no se distinguen). De ella salen `favicon.ico` (16, 32 y 48 px),
- *    `favicon-48x48.png` y el icono de iOS (a sangre, sin esquinas redondeadas: iOS pone las suyas).
+ * Genera los iconos de la app (PWA, iOS, favicon) y la imagen para compartir a partir de
+ * `public/favicon.svg`, renderizándolos con Chromium. Los PNG se guardan en `public/` y se
+ * versionan: este script solo hay que volver a ejecutarlo si cambia el logo (`npm run icons`).
  */
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pub = resolve(root, 'public');
 const BRAND_50 = '#EEF2FF';
 
-const logo = await readFile(resolve(pub, 'logo-mark.svg'), 'utf8');
-const inline = logo.replace('<svg ', '<svg width="100%" height="100%" ');
-const tab = await readFile(resolve(pub, 'favicon.svg'), 'utf8');
-const tabInline = tab.replace('<svg ', '<svg width="100%" height="100%" ');
-const tabSquare = tabInline.replace('rx="11"', 'rx="0"');
+const svg = await readFile(resolve(pub, 'favicon.svg'), 'utf8');
+const inline = svg.replace('<svg ', '<svg width="100%" height="100%" ');
 const font = await readFile(
   resolve(
     root,
@@ -56,18 +48,16 @@ await out('icons/icon-192.png', await render(iconHtml(192, 0.92), 192, 192, true
 await out('icons/icon-512.png', await render(iconHtml(512, 0.92), 512, 512, true));
 // Maskable: fondo lleno y logo dentro de la zona segura (el 80 % central; se usa el 58 %)
 await out('icons/icon-maskable-512.png', await render(iconHtml(512, 0.58, BRAND_50), 512, 512));
-// iOS: sin transparencia (iOS la pone en negro) y a sangre: el cuadrado índigo con el pin en blanco
-const fullBleed = `<!doctype html><html><body style="margin:0;width:180px;height:180px">${tabSquare}</body></html>`;
-await out('apple-touch-icon.png', await render(fullBleed, 180, 180));
+// iOS: sin transparencia (iOS la pone en negro)
+await out('apple-touch-icon.png', await render(iconHtml(180, 0.66, BRAND_50), 180, 180));
 
-// Favicon: el cuadrado de pestaña a 16, 32 y 48 px (esquinas transparentes)
-const tabHtml = (size: number) =>
-  `<!doctype html><html><body style="margin:0;width:${size}px;height:${size}px;background:transparent">${tabInline}</body></html>`;
-const entries = [] as { size: number; data: Buffer }[];
-for (const size of [16, 32, 48]) {
-  entries.push({ size, data: await render(tabHtml(size), size, size, true) });
-}
-await out('favicon-48x48.png', entries[2]!.data);
+// favicon.ico con dos PNG (32 y 48 px)
+const png32 = await render(iconHtml(32, 1), 32, 32, true);
+const png48 = await render(iconHtml(48, 1), 48, 48, true);
+const entries = [
+  { size: 32, data: png32 },
+  { size: 48, data: png48 },
+];
 const header = Buffer.alloc(6 + 16 * entries.length);
 header.writeUInt16LE(0, 0);
 header.writeUInt16LE(1, 2);
